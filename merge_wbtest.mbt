@@ -235,3 +235,24 @@ test "review tampering rejected and limit boundaries" {
   let accepted = nb(cell("a".repeat(64), ""))
   assert_eq(merge(accepted, accepted, accepted).conflicts(), [])
 }
+
+///|
+test "opaque notebook keys cannot collide with order conflict namespace" {
+  fn extended(value : String) -> Notebook raise MergeError {
+    read_notebook(
+      "{\"nbformat\":4,\"nbformat_minor\":5,\"metadata\":{},\"cells\":[],\"cell-order\":" +
+      value +
+      ",\"a//~~\":" +
+      value +
+      "}",
+    )
+  }
+  let r = merge(extended("1"), extended("2"), extended("3"))
+  assert_eq(r.conflicts(), ["/notebook/a~1~1~0~0", "/notebook/cell-order"])
+  let output = r.resolve({
+    "/notebook/a~1~1~0~0": Theirs,
+    "/notebook/cell-order": Ours,
+  })
+  assert_true(output.contains("\"cell-order\":2"))
+  assert_true(output.contains("\"a//~~\":3"))
+}

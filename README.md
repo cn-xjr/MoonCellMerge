@@ -41,8 +41,12 @@ It prints and retains its isolated temporary directory, including merged.ipynb.
 No private service, database, publisher account or Python runtime is needed.
 
 `review` prints an envelope with version, all three exact input texts and conflict
-paths. Save stdout. Exit codes: 0 clean, 1 conflicts, 2 invalid input/I/O. Build a
-decision JSON object containing `review` (the entire saved envelope), `choices`
+paths. Save stdout. Exit codes: 0 clean, 1 conflicts, 2 invalid input/I/O.
+Root-field conflicts use `/notebook/<escaped-key>`, cell conflicts use
+`/cells/<id>`, and order uses `/cell-order`; extension keys cannot collide with
+the reserved cell/order namespace. Keys use JSON Pointer escaping.
+
+Build a decision JSON object containing `review` (the entire saved envelope), `choices`
 (each conflict path mapped to `base`, `ours` or `theirs`), and, for `/cell-order`,
 an `order` array listing every retained ID exactly once. Clean reviews use empty
 choices. Missing, duplicate, unknown or stale decisions fail.

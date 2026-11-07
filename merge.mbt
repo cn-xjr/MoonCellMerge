@@ -219,7 +219,7 @@ fn pointer(key : String) -> String {
       _ => out.write_char(c)
     }
   }
-  "/" + out.to_string()
+  "/notebook/" + out.to_string()
 }
 
 ///|
@@ -369,6 +369,7 @@ pub fn restore_review(text : String) -> Review raise MergeError {
   }
   let v = @json.parse(
     text,
+    max_nesting_depth=64,
     reject_duplicate_keys=true,
     preserve_number_repr=true,
   ) catch {

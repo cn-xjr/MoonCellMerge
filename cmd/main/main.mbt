@@ -32,6 +32,7 @@ async fn execute() -> Int32 {
     let r = @merge.merge(b, o, t)
     let doc = @json.parse(
       read(a[5]),
+      max_nesting_depth=64,
       reject_duplicate_keys=true,
       preserve_number_repr=true,
     )
