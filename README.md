@@ -40,6 +40,12 @@ merge, conflicts, resolution, stale decisions, malformed input and recovery.
 It prints and retains its isolated temporary directory, including merged.ipynb.
 No private service, database, publisher account or Python runtime is needed.
 
+Inspect saved conflicts with `moon run cmd/main -- inspect REVIEW.json` (exit 1
+when conflicts remain). The public `Review::details` and `Review::to_text` expose
+all three snapshots, conflict kinds and actionable selection guidance. Missing
+values differ from JSON null. Snapshots are caller-owned; changing them cannot
+change the review. Text escapes control characters rather than rendering them.
+
 `review` prints an envelope with version, all three exact input texts and conflict
 paths. Save stdout. Exit codes: 0 clean, 1 conflicts, 2 invalid input/I/O.
 Root-field conflicts use `/notebook/<escaped-key>`, cell conflicts use

@@ -26,6 +26,15 @@ pub(all) enum Choice {
   Theirs
 }
 
+pub(all) struct Conflict {
+  path : String
+  kind : String
+  base : @json.Json
+  ours : @json.Json
+  theirs : @json.Json
+}
+pub fn Conflict::to_json(Self) -> @json.Json
+
 pub struct Notebook {
   // private fields
 }
@@ -34,8 +43,10 @@ pub struct Review {
   // private fields
 }
 pub fn Review::conflicts(Self) -> Array[String]
+pub fn Review::details(Self) -> Array[Conflict] raise MergeError
 pub fn Review::resolve(Self, Map[String, Choice], order? : Array[String]) -> String raise MergeError
 pub fn Review::to_json(Self) -> @json.Json
+pub fn Review::to_text(Self) -> String raise MergeError
 
 // Type aliases
 

@@ -25,6 +25,11 @@ async fn execute() -> Int32 {
       "usage: review BASE OURS THEIRS | resolve BASE OURS THEIRS DECISIONS | git-driver BASE OURS THEIRS",
     )
   }
+  if a[1] == "inspect" && a.length() == 3 {
+    let r = @merge.restore_review(read(a[2]))
+    @stdio.stdout.write(r.to_text() + "\n")
+    return if r.conflicts().is_empty() { 0 } else { 1 }
+  }
   if a[1] == "resolve" && a.length() == 6 {
     let b = @merge.read_notebook(read(a[2]))
     let o = @merge.read_notebook(read(a[3]))
