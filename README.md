@@ -7,7 +7,12 @@ For teams maintaining notebooks in Git and developers building notebook tools.
 
 Source version 0.1.0; not published to Mooncakes. nbformat 4.5 with unique legal
 cell IDs; code, Markdown and raw cells. Independent cell edits merge. Different
-edits to one cell conflict atomically. Single-sided insert/delete/move works;
+edits to one source/execution group conflict atomically. Independent cell fields
+and top-level metadata keys can merge within the same cell. Source, cell type,
+outputs and execution_count are one atomic group, preventing accidental mixing
+of one branch's code with the other branch's execution evidence. Nested metadata
+and attachments remain atomic values; competing edits require whole-cell review.
+Single-sided insert/delete/move works;
 incompatible orders require an explicit complete retained-ID array. Delete/edit
 conflicts retain evidence. Changed source with nonempty outputs requires explicit
 whole-cell acknowledgment. Outputs are never silently cleared or certified current.

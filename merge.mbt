@@ -248,14 +248,12 @@ fn merge_value(
   let merged : Map[String, Json] = Map([])
   for key in keys3(bi, oi, ti) {
     let path = "/cells/" + key
-    let mut chosen = pick(
-      path,
-      bi.get(key),
-      oi.get(key),
-      ti.get(key),
-      choices,
-      conflicts,
-    )
+    let composed = compose_cell(bi.get(key), oi.get(key), ti.get(key))
+    let mut chosen = if composed is Some(c) {
+      Some(c)
+    } else {
+      pick(path, bi.get(key), oi.get(key), ti.get(key), choices, conflicts)
+    }
     if conflicts.contains(path) &&
       (oi.get(key) is None) != (ti.get(key) is None) &&
       !conflicts.contains("/cell-order") {

@@ -64,5 +64,13 @@ async fn main {
  let _ = run(["review",b,o,t],2)
  @fs.write_file(t,raw)
  let _ = run(["review",b,o,t],0)
+ let metadata_branch = @json.parse(raw,preserve_number_repr=true)
+ guard metadata_branch is Object(root) && root["cells"] is Array(all_cells) && all_cells[0] is Object(first) && first["metadata"] is Object(meta) else { fail("Metadata fixture shape") }
+ meta["cellmerge-review"] = Json::string("independent-metadata")
+ @fs.write_file(o,edit(raw,0,"same-cell-source"))
+ @fs.write_file(t,metadata_branch.stringify())
+ let _ = run(["git-driver",b,o,t],0)
+ let composed = @fs.read_file(o).text()
+ assert_true(composed.contains("same-cell-source") && composed.contains("independent-metadata"))
  println("E2E passed: clean merge, conflicts, review resolution, stale decisions, malformed input and recovery")
 }
