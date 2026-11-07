@@ -1,0 +1,13 @@
+import {
+  "cn-xjr/mooncellmerge" @merge,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/stdio",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "+wasm+native"

@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cn-xjr/mooncellmerge"
+
+import {
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn canonical(@json.Json) -> String
+
+pub fn merge(Notebook, Notebook, Notebook) -> Review raise MergeError
+
+pub fn read_notebook(String) -> Notebook raise MergeError
+
+pub fn restore_review(String) -> Review raise MergeError
+
+// Errors
+pub(all) suberror MergeError {
+  Invalid(String)
+}
+
+// Types and methods
+pub(all) enum Choice {
+  Base
+  Ours
+  Theirs
+}
+
+pub struct Notebook {
+  // private fields
+}
+
+pub struct Review {
+  // private fields
+}
+pub fn Review::conflicts(Self) -> Array[String]
+pub fn Review::resolve(Self, Map[String, Choice], order? : Array[String]) -> String raise MergeError
+pub fn Review::to_json(Self) -> @json.Json
+
+// Type aliases
+
+// Traits

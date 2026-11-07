@@ -1,0 +1,62 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/json", "moonbitlang/core/env",
+}
+----
+
+async fn main {
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ let target = @env.args().get(1).unwrap_or("wasm")
+ guard ["wasm","native"].contains(target) else { fail("CLI target must be wasm or native") }
+ let dir = @fs.realpath(@fs.tmpdir(prefix="cellmerge-e2e"))
+ println("E2E files retained at " + dir)
+ let raw = @fs.read_file("fixtures/upstream.ipynb").text()
+ fn edit(raw : String, n : Int32, source : String) -> String raise {
+  let v = @json.parse(raw,preserve_number_repr=true)
+  guard v is Object(m) && m["cells"] is Array(a) && a[n] is Object(c) else { fail("Fixture shape") }
+  c["source"] = Json::string(source)
+  if c.get("cell_type") == Some(Json::string("code")) { c["outputs"] = Json::array([]); c["execution_count"] = Json::null() }
+  v.stringify()
+ }
+ async fn run(args : Array[String], expected : Int32) -> String {
+  let full = ["run","--target",target,"cmd/main","--"]
+  for a in args { full.push(a) }
+  let p = @shell.Cmd(moon,full).output(timeout_ms=180000)
+  assert_eq(p.exit_code(),expected,msg=p.stdout()+p.stderr())
+  p.stdout()
+ }
+ let b = dir+"/base.ipynb"
+ let o = dir+"/ours.ipynb"
+ let t = dir+"/theirs.ipynb"
+ @fs.write_file(b,raw)
+ @fs.write_file(o,edit(raw,0,"ours"))
+ @fs.write_file(t,edit(raw,1,"theirs"))
+ let clean = run(["review",b,o,t],0)
+ let _ = run(["git-driver",b,o,t],0)
+ let merged = @fs.read_file(o).text()
+ assert_true(merged.contains("ours") && merged.contains("theirs"))
+ @fs.write_file(dir+"/clean-review.json",clean)
+ @fs.write_file(o,edit(raw,0,"ours"))
+ @fs.write_file(t,edit(raw,0,"theirs"))
+ let review = run(["review",b,o,t],1)
+ let before = @fs.read_file(o).text()
+ let _ = run(["git-driver",b,o,t],1)
+ assert_eq(@fs.read_file(o).text(),before)
+ let r = @json.parse(review,preserve_number_repr=true)
+ guard r is Object(m) && m["conflicts"] is Array(paths) else { fail("Review shape") }
+ let choices : Map[String,Json] = Map([])
+ for p in paths { guard p is String(path) else { fail("Conflict path") }; choices[path] = Json::string("ours") }
+ let decisions = dir+"/decisions.json"
+ @fs.write_file(decisions,Json::object({"review":r,"choices":Json::object(choices)}).stringify())
+ let resolved = run(["resolve",b,o,t,decisions],0)
+ assert_true(resolved.contains("ours"))
+ @fs.write_file(dir+"/merged.ipynb",resolved)
+ @fs.write_file(t,edit(raw,0,"new concurrent change"))
+ let _ = run(["resolve",b,o,t,decisions],2)
+ @fs.write_file(t,"{")
+ let _ = run(["review",b,o,t],2)
+ @fs.write_file(t,raw)
+ let _ = run(["review",b,o,t],0)
+ println("E2E passed: clean merge, conflicts, review resolution, stale decisions, malformed input and recovery")
+}
