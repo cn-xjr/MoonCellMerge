@@ -22,7 +22,7 @@ async fn execute() -> Int32 {
   let a = @env.args()
   if a.length() < 2 {
     fail(
-      "usage: review BASE OURS THEIRS | resolve BASE OURS THEIRS DECISIONS | git-driver BASE OURS THEIRS",
+      "usage: review BASE OURS THEIRS | inspect REVIEW | template REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
     )
   }
   if a[1] == "inspect" && a.length() == 3 {
@@ -35,12 +35,34 @@ async fn execute() -> Int32 {
     @stdio.stdout.write(@merge.canonical(r.decision_template()) + "\n")
     return 0
   }
-  if a[1] == "resolve" && a.length() == 6 {
+  if (a[1] == "resolve" && a.length() == 6) ||
+    (a[1] == "resolve-to" && a.length() == 7) {
     let b = @merge.read_notebook(read(a[2]))
     let o = @merge.read_notebook(read(a[3]))
     let t = @merge.read_notebook(read(a[4]))
     let r = @merge.merge(b, o, t)
-    @stdio.stdout.write(r.apply_decisions(read(a[5])) + "\n")
+    let result = r.apply_decisions(read(a[5]))
+    if a[1] == "resolve-to" {
+      @fs.write_file(a[6], result + "\n", create_mode=CreateNew, sync=Full)
+      @stdio.stdout.write("Created " + Json::string(a[6]).stringify() + "\n")
+    } else {
+      @stdio.stdout.write(result + "\n")
+    }
+    return 0
+  }
+  if a[1] == "merge-to" && a.length() == 6 {
+    let r = @merge.merge(
+      @merge.read_notebook(read(a[2])),
+      @merge.read_notebook(read(a[3])),
+      @merge.read_notebook(read(a[4])),
+    )
+    if !r.conflicts().is_empty() {
+      @stdio.stderr.write(r.to_text() + "\n")
+      return 1
+    }
+    let result = r.resolve(Map([]))
+    @fs.write_file(a[5], result + "\n", create_mode=CreateNew, sync=Full)
+    @stdio.stdout.write("Created " + Json::string(a[5]).stringify() + "\n")
     return 0
   }
   if a.length() != 5 || (a[1] != "review" && a[1] != "git-driver") {

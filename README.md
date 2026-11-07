@@ -76,6 +76,22 @@ Resolved JSON goes to stdout. Do not redirect onto an input file. Review/resolve
 do not write destinations. Whole-cell selection acknowledges all its values,
 including potentially stale output; it does not establish scientific correctness.
 
+For a destination file, use exclusive creation instead of shell redirection:
+
+```text
+moon run cmd/main -- merge-to BASE.ipynb OURS.ipynb THEIRS.ipynb NEW.ipynb
+moon run cmd/main -- resolve-to BASE.ipynb OURS.ipynb THEIRS.ipynb DECISIONS.json NEW.ipynb
+```
+
+Both commands finish analysis/decision validation before opening the output.
+Existing destinations (including an input file) fail with exit 2 and are never
+truncated. A conflicting `merge-to` exits 1 without creating the destination;
+stale/invalid decisions also create no destination. Creation uses the filesystem's
+exclusive-create operation, not a check-then-write race. A storage failure during
+writing can leave a partial newly created file; inspect and remove it explicitly
+before retrying. This is not a claim of crash-atomic publication or directory
+durability. The Git driver's overwrite behavior is documented separately below.
+
 ## Git driver
 
 Configure the consuming repository locally (replace the absolute checkout path):
