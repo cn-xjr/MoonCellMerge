@@ -30,53 +30,17 @@ async fn execute() -> Int32 {
     @stdio.stdout.write(r.to_text() + "\n")
     return if r.conflicts().is_empty() { 0 } else { 1 }
   }
+  if a[1] == "template" && a.length() == 3 {
+    let r = @merge.restore_review(read(a[2]))
+    @stdio.stdout.write(@merge.canonical(r.decision_template()) + "\n")
+    return 0
+  }
   if a[1] == "resolve" && a.length() == 6 {
     let b = @merge.read_notebook(read(a[2]))
     let o = @merge.read_notebook(read(a[3]))
     let t = @merge.read_notebook(read(a[4]))
     let r = @merge.merge(b, o, t)
-    let doc = @json.parse(
-      read(a[5]),
-      max_nesting_depth=64,
-      reject_duplicate_keys=true,
-      preserve_number_repr=true,
-    )
-    guard doc is Object(m) else { fail("Expected decision object") }
-    if m.length() < 2 ||
-      m.length() > 3 ||
-      !m.contains("review") ||
-      !m.contains("choices") {
-      fail("Decision fields: review, choices, optional order")
-    }
-    if m.length() == 3 && !m.contains("order") {
-      fail("Unknown decision field")
-    }
-    if @merge.canonical(m["review"]) != @merge.canonical(r.to_json()) {
-      fail("Decisions are stale: review inputs do not match current files")
-    }
-    let _ = @merge.restore_review(@merge.canonical(m["review"]))
-    guard m["choices"] is Object(c) else { fail("Expected choices object") }
-    let choices : Map[String, @merge.Choice] = Map([])
-    for (key, v) in c {
-      choices[key] = match v {
-        String("base") => Base
-        String("ours") => Ours
-        String("theirs") => Theirs
-        _ => fail("Choice must be base, ours, or theirs")
-      }
-    }
-    let order : Array[String]? = match m.get("order") {
-      None => None
-      Some(Array(ids)) =>
-        Some(
-          ids.map(v => {
-            guard v is String(s) else { fail("Order must contain cell IDs") }
-            s
-          }),
-        )
-      _ => fail("order must be an array")
-    }
-    @stdio.stdout.write(r.resolve(choices, order?) + "\n")
+    @stdio.stdout.write(r.apply_decisions(read(a[5])) + "\n")
     return 0
   }
   if a.length() != 5 || (a[1] != "review" && a[1] != "git-driver") {

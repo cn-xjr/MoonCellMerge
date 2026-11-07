@@ -51,7 +51,10 @@ async fn main {
  let choices : Map[String,Json] = Map([])
  for p in paths { guard p is String(path) else { fail("Conflict path") }; choices[path] = Json::string("ours") }
  let decisions = dir+"/decisions.json"
- @fs.write_file(decisions,Json::object({"review":r,"choices":Json::object(choices)}).stringify())
+ let template = @json.parse(run(["template",dir+"/conflict-review.json"],0),preserve_number_repr=true)
+ guard template is Object(template_fields) else { fail("Template shape") }
+ template_fields["choices"] = Json::object(choices)
+ @fs.write_file(decisions,template.stringify())
  let resolved = run(["resolve",b,o,t,decisions],0)
  assert_true(resolved.contains("ours"))
  @fs.write_file(dir+"/merged.ipynb",resolved)

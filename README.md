@@ -57,6 +57,12 @@ Build a decision JSON object containing `review` (the entire saved envelope), `c
 an `order` array listing every retained ID exactly once. Clean reviews use empty
 choices. Missing, duplicate, unknown or stale decisions fail.
 
+Generate the complete input-bound skeleton without hand-copying JSON:
+`moon run cmd/main -- template REVIEW.json`. Fill its initially empty `choices`
+object and optional `order`. The library exposes `Review::decision_template`
+and `Review::apply_decisions`; CLI and downstream consumers use the same strict
+validation and exact-input binding. An empty template never accepts conflicts.
+
 ```text
 moon run cmd/main -- resolve BASE.ipynb OURS.ipynb THEIRS.ipynb DECISIONS.json
 ```

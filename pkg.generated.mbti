@@ -42,7 +42,9 @@ pub struct Notebook {
 pub struct Review {
   // private fields
 }
+pub fn Review::apply_decisions(Self, String) -> String raise MergeError
 pub fn Review::conflicts(Self) -> Array[String]
+pub fn Review::decision_template(Self) -> @json.Json
 pub fn Review::details(Self) -> Array[Conflict] raise MergeError
 pub fn Review::resolve(Self, Map[String, Choice], order? : Array[String]) -> String raise MergeError
 pub fn Review::to_json(Self) -> @json.Json
