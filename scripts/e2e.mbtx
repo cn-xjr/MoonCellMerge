@@ -109,4 +109,23 @@ async fn main {
  let _ = run(["merge-to",b,o,t,source_output],0)
  let source_text = @fs.read_file(source_output).text()
  assert_true(source_text.contains("ours-a") && source_text.contains("theirs-c"))
+ fn inserted(raw : String, at : Int, key : String) -> String raise {
+  let v = @json.parse(raw,preserve_number_repr=true)
+  guard v is Object(m) && m["cells"] is Array(a) else { fail("Insertion fixture") }
+  let copy = @json.parse(a[0].stringify(),preserve_number_repr=true)
+  guard copy is Object(c) else { fail("Cell fixture") }
+  c["id"] = Json::string(key)
+  c["source"] = Json::string(key)
+  let result : Array[Json] = []
+  for i in 0..<a.length() { if i == at { result.push(copy) }; result.push(a[i]) }
+  m["cells"] = Json::array(result)
+  v.stringify()
+ }
+ @fs.write_file(b,raw)
+ @fs.write_file(o,inserted(raw,0,"insert-ours"))
+ @fs.write_file(t,inserted(raw,1,"insert-theirs"))
+ let order_output = dir+"/order-composed.ipynb"
+ let _ = run(["merge-to",b,o,t,order_output],0)
+ let order_text = @fs.read_file(order_output).text()
+ assert_true(order_text.contains("insert-ours") && order_text.contains("insert-theirs"))
 }

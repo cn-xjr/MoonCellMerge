@@ -21,7 +21,11 @@ outputs and execution_count are one atomic group, preventing accidental mixing
 of one branch's code with the other branch's execution evidence. Nested metadata
 and attachments remain atomic values; competing edits require whole-cell review.
 Single-sided insert/delete/move works;
-incompatible orders require an explicit complete retained-ID array. Delete/edit
+simultaneous deletions and insertions into different surviving-base gaps also
+compose when both branches preserve surviving base order. Different insertions
+into the same gap remain explicit order conflicts; matching insertion blocks
+are retained once. Moves, competing anchors and delete/edit cases are not guessed.
+Incompatible orders require an explicit complete retained-ID array. Delete/edit
 conflicts retain evidence. Changed source with nonempty outputs requires explicit
 whole-cell acknowledgment. Outputs are never silently cleared or certified current.
 
@@ -160,5 +164,5 @@ moonrockz/notebooks supplies codecs, forey217/moonconfig generic JSON merging an
 mizchi/bit_diff3 text merging. This project handles notebook cell/order/output
 decisions. None of those implementations or tests have been copied.
 
-Planned, not implemented: arbitrary multi-hunk source merging, richer order reasoning,
+Planned, not implemented: arbitrary multi-hunk source merging, simultaneous move reasoning,
 browser review and editor integrations. No artificial commit-count target.

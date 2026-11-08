@@ -175,7 +175,9 @@ fn pick(
   if same(base, theirs) {
     return ours
   }
-  conflicts.push(path)
+  if !conflicts.contains(path) {
+    conflicts.push(path)
+  }
   match choices.get(path) {
     Some(Base) => base
     Some(Theirs) => theirs
@@ -286,16 +288,26 @@ fn merge_value(
   fn order(value : Json) -> Json raise MergeError {
     Json::array(cells(value).map(c => Json::string(id(c))))
   }
-  // Entire cell-id order is atomic in v0.1. One-sided insert/delete/move works;
-  // simultaneous incompatible order edits require review, never arbitrary sort.
-  let selected = pick(
-    "/cell-order",
-    Some(order(r.base.value)),
-    Some(order(r.ours.value)),
-    Some(order(r.theirs.value)),
-    choices,
-    conflicts,
-  ).unwrap()
+  // Compose unambiguous insertion gaps/deletions first; conflicting orders and
+  // moves require review rather than an arbitrary sort of retained cell IDs.
+  let inferred_order = compose_order(
+    r.base.value,
+    r.ours.value,
+    r.theirs.value,
+    merged,
+  )
+  let selected = if inferred_order is Some(ids) {
+    Json::array(ids.map(Json::string))
+  } else {
+    pick(
+      "/cell-order",
+      Some(order(r.base.value)),
+      Some(order(r.ours.value)),
+      Some(order(r.theirs.value)),
+      choices,
+      conflicts,
+    ).unwrap()
+  }
   guard selected is Array(original_ids) else {
     raise Invalid("Internal order error")
   }
