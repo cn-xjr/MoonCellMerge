@@ -19,14 +19,28 @@ fn compose_cell(b : Json?, o : Json?, t : Json?) -> Json? raise MergeError {
   }
   let conflicts : Array[String] = []
   let choices : Map[String, Choice] = Map([])
-  let group = pick(
-    "execution",
-    Some(execution_group(bm)),
-    Some(execution_group(om)),
-    Some(execution_group(tm)),
-    choices,
-    conflicts,
-  ).unwrap()
+  let bg = execution_group(bm)
+  let og = execution_group(om)
+  let tg = execution_group(tm)
+  let source_group = if !same(Some(bg), Some(og)) &&
+    !same(Some(bg), Some(tg)) &&
+    !same(Some(og), Some(tg)) {
+    compose_source_group(bm, om, tm)
+  } else {
+    None
+  }
+  let group = if source_group is Some(g) {
+    g
+  } else {
+    pick(
+      "execution",
+      Some(execution_group(bm)),
+      Some(execution_group(om)),
+      Some(execution_group(tm)),
+      choices,
+      conflicts,
+    ).unwrap()
+  }
   let out = object(group)
   for key in keys3(bm, om, tm) {
     if ["cell_type", "source", "outputs", "execution_count"].contains(key) {

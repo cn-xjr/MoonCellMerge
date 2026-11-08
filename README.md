@@ -14,7 +14,8 @@ Saved reviews are recomputed on restoration: regenerate an older review if the
 new analysis changes its conflict list rather than applying obsolete choices.
 
 Independent cell edits merge. Different
-edits to one source/execution group conflict atomically. Independent cell fields
+execution-evidence edits conflict atomically; bounded source composition is
+described below. Independent cell fields
 and top-level metadata keys can merge within the same cell. Source, cell type,
 outputs and execution_count are one atomic group, preventing accidental mixing
 of one branch's code with the other branch's execution evidence. Nested metadata
@@ -33,7 +34,15 @@ subset needed by merging, not the entire nbformat JSON Schema. No kernel runs.
 Limits: 4 million UTF-16 units per notebook, 1 million combined merge input units,
 10,000 cells, JSON depth 64. Unsupported format versions/types and invalid IDs
 are rejected. No legacy ID guessing, notebook trust signatures, DIB conversion,
-source-line merging or proof of execution-result freshness is implemented.
+general source-line merging or proof of execution-result freshness is implemented.
+
+Bounded source composition is available for unchanged cell kinds with no stored
+outputs or execution counts. Each branch is represented as one contiguous edit
+between its common prefix/suffix lines; disjoint edits merge, including adjacent
+line replacements. Overlaps, competing insertions, insertion-boundary ambiguity,
+and sources above 100,000 UTF-16 units or 4,000 lines remain whole-cell conflicts.
+CRLF, LF and missing final newlines are retained. This is conservative composition,
+not a language-aware merge or a claim of arbitrary multi-hunk support.
 
 ## Run
 
@@ -151,5 +160,5 @@ moonrockz/notebooks supplies codecs, forey217/moonconfig generic JSON merging an
 mizchi/bit_diff3 text merging. This project handles notebook cell/order/output
 decisions. None of those implementations or tests have been copied.
 
-Planned, not implemented: per-cell source-line merging, richer order reasoning,
+Planned, not implemented: arbitrary multi-hunk source merging, richer order reasoning,
 browser review and editor integrations. No artificial commit-count target.

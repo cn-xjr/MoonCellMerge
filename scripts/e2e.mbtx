@@ -102,4 +102,11 @@ async fn main {
  let _ = run(["merge-to",b,o,t,metadata_output],0)
  let metadata_text = @fs.read_file(metadata_output).text()
  assert_true(metadata_text.contains("analysis-team") && metadata_text.contains("independent-release"))
+ @fs.write_file(b,edit(raw,0,"line-a\nline-b\nline-c\n"))
+ @fs.write_file(o,edit(raw,0,"ours-a\nline-b\nline-c\n"))
+ @fs.write_file(t,edit(raw,0,"line-a\nline-b\ntheirs-c\n"))
+ let source_output = dir+"/source-composed.ipynb"
+ let _ = run(["merge-to",b,o,t,source_output],0)
+ let source_text = @fs.read_file(source_output).text()
+ assert_true(source_text.contains("ours-a") && source_text.contains("theirs-c"))
 }
