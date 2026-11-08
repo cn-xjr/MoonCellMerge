@@ -1,0 +1,96 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/json", "moonbitlang/core/env",
+}
+----
+async fn main {
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ let runner = @env.get_env_var("CELLMERGE_MOONRUN").unwrap_or("moonrun")
+ let raw = @fs.read_file("fixtures/upstream.ipynb").text()
+ let dir = @fs.realpath(@fs.tmpdir(prefix="cellmerge-git"))
+ println("Real Git fixture repositories retained at " + dir)
+ async fn command(exe : String, args : Array[String], cwd : String, code : Int) -> String {
+  let p = @shell.Cmd(exe,args,cwd~).output(timeout_ms=180000)
+  assert_eq(p.exit_code(),code,msg=args.join(" ")+"\n"+p.stdout()+p.stderr())
+  p.stdout()
+ }
+ let root = @fs.realpath(".")
+ let _ = command(moon,["build","--target","wasm","cmd/main"],root,0)
+ @fs.mkdir(dir+"/tool with spaces")
+ let artifact = dir+"/tool with spaces/main.wasm"
+ @fs.write_file(artifact,@fs.read_file("_build/wasm/debug/build/cmd/main/main.wasm"))
+ fn quote(text : String) -> String {
+  "'" + text.replace_all(old="\\",new="/").replace_all(old="'",new="'\"'\"'") + "'"
+ }
+ let driver = quote(runner)+" "+quote(artifact)+" -- git-driver %O %A %B"
+ fn edited(raw : String, index : Int, text : String) -> String raise {
+  let v = @json.parse(raw,preserve_number_repr=true)
+  guard v is Object(m) && m["cells"] is Array(a) && a[index] is Object(c) else { fail("Fixture shape") }
+  c["source"] = Json::string(text)
+  v.stringify()
+ }
+ for conflict in [false,true] {
+  let repo = dir + (if conflict { "/conflict repo" } else { "/clean repo" })
+  @fs.mkdir(repo)
+  async fn git(args : Array[String], code : Int) -> String { command("git",args,repo,code) }
+  let _ = git(["init","--initial-branch=main"],0)
+  // These identities belong only to disposable fixture history, never this
+  // project's real commits, remotes or user-global Git configuration.
+  let _ = git(["config","user.name","MoonCellMerge fixture"],0)
+  let _ = git(["config","user.email","fixture@example.invalid"],0)
+  let _ = git(["config","commit.gpgsign","false"],0)
+  let _ = git(["config","core.autocrlf","false"],0)
+  @fs.mkdir(repo+"/empty-hooks")
+  let _ = git(["config","core.hooksPath",repo+"/empty-hooks"],0)
+  let _ = git(["config","merge.cellmerge.name","MoonCellMerge fixture driver"],0)
+  let _ = git(["config","merge.cellmerge.driver",driver],0)
+  @fs.write_file(repo+"/.gitattributes","*.ipynb merge=cellmerge\n* text eol=lf\n")
+  @fs.write_file(repo+"/analysis with spaces.ipynb",raw)
+  let _ = git(["add","--",".gitattributes","analysis with spaces.ipynb"],0)
+  let _ = git(["commit","-m","fixture baseline"],0)
+  let _ = git(["checkout","-b","feature"],0)
+  let theirs = edited(raw,if conflict { 0 } else { 1 },"theirs-marker")
+  @fs.write_file(repo+"/analysis with spaces.ipynb",theirs)
+  let _ = git(["add","--","analysis with spaces.ipynb"],0)
+  let _ = git(["commit","-m","fixture feature"],0)
+  let _ = git(["checkout","main"],0)
+  let ours = edited(raw,0,"ours-marker")
+  @fs.write_file(repo+"/analysis with spaces.ipynb",ours)
+  let _ = git(["add","--","analysis with spaces.ipynb"],0)
+  let _ = git(["commit","-m","fixture main"],0)
+  let _ = git(["merge","--no-edit","feature"],if conflict { 1 } else { 0 })
+  if conflict {
+   assert_eq(@fs.read_file(repo+"/analysis with spaces.ipynb").text(),ours)
+   let base_stage = git(["show",":1:analysis with spaces.ipynb"],0)
+   let ours_stage = git(["show",":2:analysis with spaces.ipynb"],0)
+   let theirs_stage = git(["show",":3:analysis with spaces.ipynb"],0)
+   assert_eq(base_stage,raw)
+   assert_eq(ours_stage,ours)
+   assert_eq(theirs_stage,theirs)
+   let _ = git(["merge","--abort"],0)
+   assert_eq(@fs.read_file(repo+"/analysis with spaces.ipynb").text(),ours)
+   let _ = git(["merge","--no-edit","feature"],1)
+   for (name,text) in [("BASE",base_stage),("OURS",ours_stage),("THEIRS",theirs_stage)] { @fs.write_file(repo+"/"+name,text) }
+   let review = command(runner,[artifact,"--","review","BASE","OURS","THEIRS"],repo,1)
+   @fs.write_file(repo+"/review.json",review)
+   let template = @json.parse(command(runner,[artifact,"--","template","review.json"],repo,0),preserve_number_repr=true)
+   guard template is Object(m) && m["review"] is Object(r) && r["conflicts"] is Array(paths) else { fail("Decision shape") }
+   let choices : Map[String,Json] = Map([])
+   for path in paths { guard path is String(s) else { fail("Path shape") }; choices[s] = Json::string("ours") }
+   m["choices"] = Json::object(choices)
+   @fs.write_file(repo+"/decisions.json",template.stringify())
+   let _ = command(runner,[artifact,"--","resolve-to","BASE","OURS","THEIRS","decisions.json","resolved.ipynb"],repo,0)
+   @fs.write_file(repo+"/analysis with spaces.ipynb",@fs.read_file(repo+"/resolved.ipynb"))
+   let _ = git(["add","--","analysis with spaces.ipynb"],0)
+   let _ = git(["commit","-m","fixture reviewed merge"],0)
+   assert_true(git(["ls-files","--unmerged"],0).is_empty())
+   assert_true(@fs.read_file(repo+"/analysis with spaces.ipynb").text().contains("ours-marker"))
+  } else {
+   let text = @fs.read_file(repo+"/analysis with spaces.ipynb").text()
+   assert_true(text.contains("ours-marker") && text.contains("theirs-marker"))
+   assert_true(git(["status","--porcelain","--untracked-files=no"],0).is_empty())
+  }
+ }
+ println("Real Git merge, conflict stages, abort, explicit resolution and merge commit passed")
+}

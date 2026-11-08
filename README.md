@@ -125,7 +125,7 @@ Configure the consuming repository locally (replace the absolute checkout path):
 ```text
 moon build --target wasm cmd/main
 git config merge.cellmerge.name "MoonCellMerge notebook merge"
-git config merge.cellmerge.driver 'moonrun /absolute/path/MoonCellMerge/_build/wasm/debug/build/cmd/main/main.wasm -- git-driver %O %A %B'
+git config merge.cellmerge.driver 'moonrun "/absolute/path/MoonCellMerge/_build/wasm/debug/build/cmd/main/main.wasm" -- git-driver %O %A %B'
 ```
 
 Add `*.ipynb merge=cellmerge` to its .gitattributes. Quote paths containing spaces.
@@ -133,6 +133,14 @@ Only a clean merge writes Git's temporary OURS file; conflicts leave it unchange
 and exit 1. Use review/resolve to resolve conflicts, then stage the reviewed file.
 The initial driver uses a normal file write, not a durable atomic rename; use
 Git's original versions to recover from an interrupted write.
+
+Run `moon run scripts/git_e2e.mbtx` to exercise actual Git merges in isolated
+repositories, with a copied Wasm executable and filenames containing spaces.
+It verifies clean auto-merge, unchanged OURS on conflict, all three index stages,
+merge abort/retry, template-based resolution and the final Git merge commit.
+Temporary repositories have synthetic fixture-only authors and no remotes;
+your repository configuration/history is not modified. `CELLMERGE_MOONRUN` may
+select a particular moonrun executable. Artifacts are retained for inspection.
 
 ## Library and adoption
 
