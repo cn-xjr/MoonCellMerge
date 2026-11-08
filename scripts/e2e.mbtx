@@ -128,4 +128,8 @@ async fn main {
  let _ = run(["merge-to",b,o,t,order_output],0)
  let order_text = @fs.read_file(order_output).text()
  assert_true(order_text.contains("insert-ours") && order_text.contains("insert-theirs"))
+ @fs.write_file(t,raw.replace(old="\"nbformat\": 4",new="\"nbformat\": 4.00000000000000001"))
+ let _ = run(["review",b,o,t],2)
+ @fs.write_file(t,raw)
+ let _ = run(["review",b,o,t],0)
 }

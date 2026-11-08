@@ -37,7 +37,13 @@ subset needed by merging, not the entire nbformat JSON Schema. No kernel runs.
 
 Limits: 4 million UTF-16 units per notebook, 1 million combined merge input units,
 10,000 cells, JSON depth 64. Unsupported format versions/types and invalid IDs
-are rejected. No legacy ID guessing, notebook trust signatures, DIB conversion,
+are rejected.
+Structural numeric fields (`nbformat`, `nbformat_minor`, non-null
+`execution_count`) require plain nonnegative decimal integer tokens through
+2147483647. Fractions, exponents and negative zero are rejected before floating
+point rounding; producer metadata retains arbitrary original numeric spellings.
+
+No legacy ID guessing, notebook trust signatures, DIB conversion,
 general source-line merging or proof of execution-result freshness is implemented.
 
 Bounded source composition is available for unchanged cell kinds with no stored

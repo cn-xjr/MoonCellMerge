@@ -78,8 +78,8 @@ pub fn read_notebook(raw : String) -> Notebook raise MergeError {
     e => raise Invalid("Invalid JSON: " + e.to_string())
   }
   let m = object(value)
-  if m.get("nbformat") != Some(Json::number(4)) ||
-    m.get("nbformat_minor") != Some(Json::number(5)) {
+  if structural_integer(m.get("nbformat"), "nbformat") != 4 ||
+    structural_integer(m.get("nbformat_minor"), "nbformat_minor") != 5 {
     raise Invalid("Only nbformat 4.5 is supported; explicit upgrade required")
   }
   let _ = object(m.get("metadata").unwrap_or(Json::null()))
@@ -117,8 +117,12 @@ pub fn read_notebook(raw : String) -> Notebook raise MergeError {
         }
         match cm.get("execution_count") {
           Some(Null) => ()
-          Some(Number(n, ..)) if n >= 0 && n <= 2147483647 && n.floor() == n =>
-            ()
+          Some(Number(_, ..)) => {
+            let _ = structural_integer(
+              cm.get("execution_count"),
+              "execution_count for " + key,
+            )
+          }
           _ => raise Invalid("Invalid execution_count: " + key)
         }
       }
