@@ -3,6 +3,11 @@
 Conservative cell-ID-aware three-way Jupyter notebook merge and review in MoonBit.
 For teams maintaining notebooks in Git and developers building notebook tools.
 
+The initial source delivery includes the full merge/review/Git/consumer workflow.
+See [the acceptance contract](docs/acceptance.md) for one-command verification,
+the receipt format and explicit remaining limitations. It is not a complete
+replacement for nbdime or Jupyter's own schema validation.
+
 ## Implemented scope
 
 Source version 0.1.0; not published to Mooncakes. Supports nbformat 4.5 with

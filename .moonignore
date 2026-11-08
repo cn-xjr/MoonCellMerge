@@ -16,6 +16,8 @@
 !/fixtures/JUPYTER_LICENSE
 !/scripts/
 !/scripts/*.mbtx
+!/docs/
+!/docs/*.md
 **/_build/
 **/target/
 **/.mooncakes/

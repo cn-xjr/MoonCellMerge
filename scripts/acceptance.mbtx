@@ -1,0 +1,53 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/json", "moonbitlang/core/env",
+}
+----
+async fn main {
+ let args = @env.args()
+ guard args.length() == 3 && ["portable","native"].contains(args[1]) else {
+  fail("usage: moon run scripts/acceptance.mbtx portable|native NEW_RECEIPT.json")
+ }
+ let destination = args[2]
+ guard !@fs.exists(destination) else { fail("Receipt already exists; select a fresh output path") }
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ async fn checked(program : String, args : Array[String]) -> String {
+  let p = @shell.Cmd(program,args).output(timeout_ms=300000)
+  guard p.exit_code() == 0 else { fail(args.join(" ")+"\n"+p.stdout()+p.stderr()) }
+  println("Passed: " + args.join(" "))
+  if !p.stdout().is_empty() { println(p.stdout()) }
+  p.stdout().trim().to_owned()
+ }
+ let commit = checked("git",["rev-parse","HEAD"])
+ let dirty = !checked("git",["status","--porcelain"]).is_empty()
+ let version = checked(moon,["version"])
+ let fixture = checked("git",["hash-object","fixtures/upstream.ipynb"])
+ assert_eq(fixture,"f1f18423e177874825431869c5a7d8d522e0e077",msg="Upstream fixture differs from its pinned Git blob")
+ let _ = checked(moon,["fmt","--check"])
+ let _ = checked(moon,["info"])
+ let _ = checked("git",["diff","--exit-code","--","pkg.generated.mbti","cmd/main/pkg.generated.mbti"])
+ let _ = checked(moon,["check","--target","all","--deny-warn"])
+ for script in ["scripts/e2e.mbtx","scripts/git_e2e.mbtx","scripts/consumer.mbtx","scripts/acceptance.mbtx"] {
+  let _ = checked(moon,["fmt","--check",script])
+  let _ = checked(moon,["check",script,"--deny-warn"])
+ }
+ let targets = ["wasm","wasm-gc","js"]
+ if args[1] == "native" { targets.push("native") }
+ for target in targets {
+  let _ = checked(moon,["test","--target",target,"--deny-warn"])
+  let _ = checked(moon,["run","scripts/consumer.mbtx",target])
+ }
+ let _ = checked(moon,["run","scripts/e2e.mbtx","wasm"])
+ let _ = checked(moon,["run","scripts/git_e2e.mbtx"])
+ if args[1] == "native" { let _ = checked(moon,["run","scripts/e2e.mbtx","native"]) }
+ assert_eq(checked("git",["rev-parse","HEAD"]),commit,msg="HEAD changed while validating")
+ let receipt = Json::object({"version":Json::number(1),"commit":Json::string(commit),
+  "dirty_workspace":Json::boolean(dirty),"moon_version":Json::string(version),
+  "fixture_git_blob":Json::string(fixture),"result":Json::string("passed"),
+  "executed_targets":Json::array(targets.map(Json::string)),"native_executed":Json::boolean(args[1] == "native"),
+  "real_git_merge_executed":Json::boolean(true),"packaged_consumer_executed":Json::boolean(true)})
+ @fs.write_file(destination,receipt.stringify(indent=2)+"\n",create_mode=CreateNew,sync=Full)
+ println(receipt.stringify(indent=2))
+ println("Acceptance passed; receipt written exclusively to " + destination)
+}
