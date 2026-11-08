@@ -1,0 +1,49 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/env",
+}
+----
+async fn main {
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ let target = @env.args().get(1).unwrap_or("wasm")
+ guard ["wasm","wasm-gc","js","native"].contains(target) else { fail("Invalid consumer target") }
+ let dir = @fs.realpath(@fs.tmpdir(prefix="cellmerge-consumer"))
+ println("Independent consumer retained at " + dir)
+ async fn checked(program : String, args : Array[String]) -> String {
+  let p = @shell.Cmd(program,args).output(timeout_ms=180000)
+  guard p.exit_code() == 0 else { fail(args.join(" ")+"\n"+p.stdout()+p.stderr()) }
+  p.stdout()
+ }
+ let _ = checked(moon,["package","--target-dir",dir+"/package"])
+ let archives = @fs.readdir(dir+"/package/publish").filter(name => name.has_suffix(".zip"))
+ assert_eq(archives.length(),1)
+ let archive = dir+"/package/publish/"+archives[0]
+ let windows = @env.get_env_var("OS") == Some("Windows_NT")
+ let list = if windows { checked("tar",["-tf",archive]) } else { checked("unzip",["-Z1",archive]) }
+ let entries = list.split("\n").map(s => s.trim().to_owned().replace_all(old="\\",new="/")).to_array()
+ for name in entries {
+  assert_true(!name.has_prefix("/") && !name.contains(":") && !name.split("/").any(p => p == ".."))
+  assert_true(!name.has_prefix("examples/") && !name.contains("_build/") && !name.contains(".mooncakes/") && !name.has_prefix(".git/"))
+ }
+ for name in ["moon.mod","moon.pkg","pkg.generated.mbti","LICENSE","THIRD_PARTY.md","fixtures/JUPYTER_LICENSE","merge.mbt","source_merge.mbt","order_merge.mbt","cmd/main/main.mbt","scripts/e2e.mbtx"] {
+  assert_true(entries.contains(name),msg="Missing packaged file: "+name)
+ }
+ let library = dir+"/library"
+ let consumer = dir+"/consumer"
+ @fs.mkdir(library)
+ @fs.mkdir(consumer)
+ let _ = if windows { checked("tar",["-xf",archive,"-C",library]) } else { checked("unzip",["-q",archive,"-d",library]) }
+ for name in ["moon.mod","moon.pkg","main.mbt","consumer_wbtest.mbt"] {
+  @fs.write_file(consumer+"/"+name,@fs.read_file("examples/consumer/"+name))
+ }
+ @fs.write_file(dir+"/.gitattributes","* text=auto eol=lf\n")
+ let _ = checked("git",["init","-q",dir])
+ let _ = checked(moon,["-C",dir,"work","init","library","consumer"])
+ let _ = checked(moon,["-C",consumer,"check","--target",target,"--deny-warn"])
+ let tests = checked(moon,["-C",consumer,"test","--target",target,"--package","cn-xjr/cellmerge_consumer","--deny-warn"])
+ assert_true(tests.contains("Total tests: 2, passed: 2, failed: 0."),msg=tests)
+ let output = checked(moon,["-C",consumer,"run","--target",target,"."])
+ assert_true(output.contains("MoonCellMerge independent consumer:"),msg=output)
+ println("Packaged public consumer passed on " + target)
+}

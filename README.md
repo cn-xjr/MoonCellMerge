@@ -136,6 +136,22 @@ containing this checkout and your separate module. API: `read_notebook`, `merge`
 `Choice`, `MergeError`, `canonical`. Notebook/Review internals are private.
 See pkg.generated.mbti. Returned conflict arrays are copies.
 
+Verify the actual source ZIP from a separate consuming module:
+
+```text
+moon run scripts/consumer.mbtx wasm
+moon run scripts/consumer.mbtx wasm-gc
+moon run scripts/consumer.mbtx js
+moon run scripts/consumer.mbtx native
+```
+
+The script checks the package allowlist/licenses, extracts the ZIP into a fresh
+directory and creates a workspace with only that extracted library and the
+separate consumer. The original checkout cannot satisfy its dependency. Two
+public-API tests and a real executable run per target. Git and Windows tar or
+POSIX unzip are required; native requires a C compiler. Temporary files remain
+for inspection. This is local package verification, not Mooncakes publication.
+
 Use cases: parallel edits to separate analysis cells; teaching-repository upstream
 sync with a single-sided cell move; deletion versus editing requiring explicit
 whole-cell review. The first milestone includes CLI, review replay and Git use.
