@@ -237,6 +237,12 @@ fn merge_value(
     if k == "cells" {
       continue
     }
+    if k == "metadata" {
+      if compose_notebook_metadata(b.get(k), o.get(k), t.get(k)) is Some(v) {
+        out[k] = v
+        continue
+      }
+    }
     if pick(pointer(k), b.get(k), o.get(k), t.get(k), choices, conflicts)
       is Some(v) {
       out[k] = v

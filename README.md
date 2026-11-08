@@ -5,8 +5,15 @@ For teams maintaining notebooks in Git and developers building notebook tools.
 
 ## Implemented scope
 
-Source version 0.1.0; not published to Mooncakes. nbformat 4.5 with unique legal
-cell IDs; code, Markdown and raw cells. Independent cell edits merge. Different
+Source version 0.1.0; not published to Mooncakes. Supports nbformat 4.5 with
+unique legal cell IDs; code, Markdown and raw cells.
+Notebook-level metadata also merges independent top-level producer keys. Nested
+values such as kernelspec or language_info remain atomic; competing nested edits
+require `/notebook/metadata` review. Deletion differs from a present JSON null.
+Saved reviews are recomputed on restoration: regenerate an older review if the
+new analysis changes its conflict list rather than applying obsolete choices.
+
+Independent cell edits merge. Different
 edits to one source/execution group conflict atomically. Independent cell fields
 and top-level metadata keys can merge within the same cell. Source, cell type,
 outputs and execution_count are one atomic group, preventing accidental mixing

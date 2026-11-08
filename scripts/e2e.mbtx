@@ -91,4 +91,15 @@ async fn main {
  let composed = @fs.read_file(o).text()
  assert_true(composed.contains("same-cell-source") && composed.contains("independent-metadata"))
  println("E2E passed: clean merge, conflicts, review resolution, stale decisions, malformed input and recovery")
+ let notebook_meta_ours = @json.parse(raw,preserve_number_repr=true)
+ let notebook_meta_theirs = @json.parse(raw,preserve_number_repr=true)
+ guard notebook_meta_ours is Object(om) && om["metadata"] is Object(ometa) && notebook_meta_theirs is Object(tm) && tm["metadata"] is Object(tmeta) else { fail("Notebook metadata shape") }
+ ometa["cellmerge-owner"] = Json::string("analysis-team")
+ tmeta["cellmerge-release"] = Json::string("independent-release")
+ @fs.write_file(o,notebook_meta_ours.stringify())
+ @fs.write_file(t,notebook_meta_theirs.stringify())
+ let metadata_output = dir+"/notebook-metadata.ipynb"
+ let _ = run(["merge-to",b,o,t,metadata_output],0)
+ let metadata_text = @fs.read_file(metadata_output).text()
+ assert_true(metadata_text.contains("analysis-team") && metadata_text.contains("independent-release"))
 }
