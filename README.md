@@ -39,6 +39,11 @@ opaque values. Numbers retain exact JSON spellings, including integers beyond
 2^53. Duplicate keys fail. Object keys sort deterministically; whitespace and
 original key order are not retained. Reader validation covers the structural
 subset needed by merging, not the entire nbformat JSON Schema. No kernel runs.
+The reader validates the envelopes for stream, rich display, execution result
+and error outputs, and reports the cell ID, zero-based output index and field
+on failure. MIME values and unrecognized output types with a nonempty
+`output_type` are preserved without interpretation. See the
+[Jupyter format description](https://nbformat.readthedocs.io/en/latest/format_description.html#code-cell-outputs).
 
 Limits: 4 million UTF-16 units per notebook, 1 million combined merge input units,
 10,000 cells, JSON depth 64. Unsupported format versions/types and invalid IDs

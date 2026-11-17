@@ -112,8 +112,11 @@ pub fn read_notebook(raw : String) -> Notebook raise MergeError {
     let _ = object(cm.get("metadata").unwrap_or(Json::null()))
     match cm.get("cell_type") {
       Some(String("code")) => {
-        guard cm.get("outputs") is Some(Array(_)) else {
+        guard cm.get("outputs") is Some(Array(outputs)) else {
           raise Invalid("Code cell requires outputs array: " + key)
+        }
+        for i, output in outputs {
+          validate_output(output, "/cells/" + key + "/outputs/" + i.to_string())
         }
         match cm.get("execution_count") {
           Some(Null) => ()
