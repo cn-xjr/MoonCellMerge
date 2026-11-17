@@ -1,10 +1,10 @@
 ///|
-// Source, cell type and execution evidence form one atomic group. Metadata
+// Source, cell type, attachments and execution evidence form one atomic group. Metadata
 // changes may compose with this group; source from one branch must never be
 // accidentally paired with another branch's output by field-wise merging.
-fn execution_group(m : Map[String, Json]) -> Json {
+fn content_group(m : Map[String, Json]) -> Json {
   let out : Map[String, Json] = Map([])
-  for k in ["cell_type", "source", "outputs", "execution_count"] {
+  for k in ["cell_type", "source", "outputs", "execution_count", "attachments"] {
     if m.get(k) is Some(v) {
       out[k] = v
     }
@@ -19,9 +19,9 @@ fn compose_cell(b : Json?, o : Json?, t : Json?) -> Json? raise MergeError {
   }
   let conflicts : Array[String] = []
   let choices : Map[String, Choice] = Map([])
-  let bg = execution_group(bm)
-  let og = execution_group(om)
-  let tg = execution_group(tm)
+  let bg = content_group(bm)
+  let og = content_group(om)
+  let tg = content_group(tm)
   let source_group = if !same(Some(bg), Some(og)) &&
     !same(Some(bg), Some(tg)) &&
     !same(Some(og), Some(tg)) {
@@ -32,18 +32,13 @@ fn compose_cell(b : Json?, o : Json?, t : Json?) -> Json? raise MergeError {
   let group = if source_group is Some(g) {
     g
   } else {
-    pick(
-      "execution",
-      Some(execution_group(bm)),
-      Some(execution_group(om)),
-      Some(execution_group(tm)),
-      choices,
-      conflicts,
-    ).unwrap()
+    pick("content", Some(bg), Some(og), Some(tg), choices, conflicts).unwrap()
   }
   let out = object(group)
   for key in keys3(bm, om, tm) {
-    if ["cell_type", "source", "outputs", "execution_count"].contains(key) {
+    if ["cell_type", "source", "outputs", "execution_count", "attachments"].contains(
+        key,
+      ) {
       continue
     }
     if key == "metadata" &&

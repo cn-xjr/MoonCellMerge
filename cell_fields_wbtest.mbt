@@ -61,3 +61,39 @@ test "source and competing execution evidence remain a whole-cell conflict" {
   )
   assert_eq(retained.conflicts(), ["/cells/a"])
 }
+
+///|
+test "Markdown references and attachment updates cannot be mixed across branches" {
+  fn note(
+    text : String,
+    attachments : String,
+    metadata : String,
+  ) -> Notebook raise MergeError {
+    nb(
+      "{\"id\":\"figure\",\"cell_type\":\"markdown\",\"source\":" +
+      Json::string(text).stringify() +
+      ",\"attachments\":" +
+      attachments +
+      ",\"metadata\":" +
+      metadata +
+      "}",
+    )
+  }
+  let image = "{\"a.png\":{\"image/png\":\"AA==\"}}"
+  let b = note("Overview", image, "{}")
+  let o = note("![Figure](attachment:a.png)", image, "{}")
+  let t = note("Overview", "{}", "{}")
+  let r = merge(b, o, t)
+  assert_eq(r.conflicts(), ["/cells/figure"])
+  assert_eq(merge(b, t, o).conflicts(), r.conflicts())
+  assert_eq(r.resolve({ "/cells/figure": Ours }), canonical(o.value))
+  assert_eq(r.resolve({ "/cells/figure": Theirs }), canonical(t.value))
+  let metadata = note("Overview", image, "{\"reviewer\":\"team\"}")
+  let combined = merge(b, o, metadata).resolve(Map([]))
+  assert_eq(
+    combined,
+    canonical(
+      note("![Figure](attachment:a.png)", image, "{\"reviewer\":\"team\"}").value,
+    ),
+  )
+}

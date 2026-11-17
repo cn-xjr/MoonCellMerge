@@ -90,7 +90,7 @@ fn compose_source_group(
   om : Map[String, Json],
   tm : Map[String, Json],
 ) -> Json? raise MergeError {
-  for k in ["outputs", "execution_count"] {
+  for k in ["outputs", "execution_count", "attachments"] {
     if !same(bm.get(k), om.get(k)) || !same(bm.get(k), tm.get(k)) {
       return None
     }
@@ -115,7 +115,7 @@ fn compose_source_group(
       source(Json::object(tm)),
     )
     is Some(text) {
-    let result = object(execution_group(bm))
+    let result = object(content_group(bm))
     result["source"] = Json::string(text)
     Some(Json::object(result))
   } else {

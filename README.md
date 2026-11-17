@@ -22,9 +22,10 @@ Independent cell edits merge. Different
 execution-evidence edits conflict atomically; bounded source composition is
 described below. Independent cell fields
 and top-level metadata keys can merge within the same cell. Source, cell type,
-outputs and execution_count are one atomic group, preventing accidental mixing
-of one branch's code with the other branch's execution evidence. Nested metadata
-and attachments remain atomic values; competing edits require whole-cell review.
+outputs, execution_count and attachments are one atomic group. This prevents
+mixing one branch's code with the other's execution evidence, or inserting a
+Markdown reference while the other branch removes its image. Source composition
+requires unchanged attachments. Nested metadata remains atomic.
 Single-sided insert/delete/move works;
 simultaneous deletions and insertions into different surviving-base gaps also
 compose when both branches preserve surviving base order. Different insertions
