@@ -90,6 +90,13 @@ all three snapshots, conflict kinds and actionable selection guidance. Missing
 values differ from JSON null. Snapshots are caller-owned; changing them cannot
 change the review. Text escapes control characters rather than rendering them.
 
+For automation, run `moon run cmd/main -- inspect-json REVIEW.json` or call
+`Review::conflict_report`. The JSON object contains `version: 1`,
+`requires_order`, and a `conflicts` array with each entry's `path`, `kind`
+and three presence-marked snapshots. An empty list exits 0, remaining conflicts
+exit 1, and invalid input exits 2 with no JSON on stdout. Save the full
+`review` output separately if you need to replay decisions.
+
 `review` prints an envelope with version, all three exact input texts and conflict
 paths. Save stdout. Exit codes: 0 clean, 1 conflicts, 2 invalid input/I/O.
 Root-field conflicts use `/notebook/<escaped-key>`, cell conflicts use

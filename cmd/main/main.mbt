@@ -22,12 +22,17 @@ async fn execute() -> Int32 {
   let a = @env.args()
   if a.length() < 2 {
     fail(
-      "usage: review BASE OURS THEIRS | inspect REVIEW | template REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
+      "usage: review BASE OURS THEIRS | inspect REVIEW | inspect-json REVIEW | template REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
     )
   }
-  if a[1] == "inspect" && a.length() == 3 {
+  if (a[1] == "inspect" || a[1] == "inspect-json") && a.length() == 3 {
     let r = @merge.restore_review(read(a[2]))
-    @stdio.stdout.write(r.to_text() + "\n")
+    let report = if a[1] == "inspect-json" {
+      @merge.canonical(r.conflict_report())
+    } else {
+      r.to_text()
+    }
+    @stdio.stdout.write(report + "\n")
     return if r.conflicts().is_empty() { 0 } else { 1 }
   }
   if a[1] == "template" && a.length() == 3 {

@@ -9,12 +9,16 @@ pub(all) struct Conflict {
 }
 
 ///|
-fn at_path(value : Json, path : String) -> Json? raise MergeError {
+fn at_path(
+  value : Json,
+  by_id : Map[String, Json],
+  path : String,
+) -> Json? raise MergeError {
   if path == "/cell-order" {
     return Some(Json::array(cells(value).map(c => Json::string(id(c)))))
   }
   if path.strip_prefix("/cells/") is Some(key) {
-    return index(value).get(key.to_owned())
+    return by_id.get(key.to_owned())
   }
   guard path.strip_prefix("/notebook/") is Some(key) else {
     raise Invalid("Unknown conflict path: " + path)
@@ -36,6 +40,9 @@ fn presence(value : Json?) -> Json {
 
 ///|
 pub fn Review::details(self : Review) -> Array[Conflict] raise MergeError {
+  if self.conflicts.is_empty() {
+    return []
+  }
   // Parse fresh snapshots so callers cannot mutate the private merge inputs.
   fn fresh(raw : String) -> Json raise MergeError {
     @json.parse(
@@ -50,10 +57,13 @@ pub fn Review::details(self : Review) -> Array[Conflict] raise MergeError {
   let b = fresh(self.base.raw)
   let o = fresh(self.ours.raw)
   let t = fresh(self.theirs.raw)
+  let bi = index(b)
+  let oi = index(o)
+  let ti = index(t)
   self.conflicts.map(path => {
-    let bv = at_path(b, path)
-    let ov = at_path(o, path)
-    let tv = at_path(t, path)
+    let bv = at_path(b, bi, path)
+    let ov = at_path(o, oi, path)
+    let tv = at_path(t, ti, path)
     let kind = if path == "/cell-order" {
       "cell-order"
     } else if path.has_prefix("/notebook/") {
@@ -81,6 +91,18 @@ pub fn Conflict::to_json(self : Conflict) -> Json {
     "base": self.base,
     "ours": self.ours,
     "theirs": self.theirs,
+  })
+}
+
+///|
+/// A versioned report for tools that render conflicts or guide decisions.
+/// Contains caller-owned snapshots of conflicting values only; for decision
+/// replay, continue to save the full envelope from `Review::to_json`.
+pub fn Review::conflict_report(self : Review) -> Json raise MergeError {
+  Json::object({
+    "version": Json::number(1),
+    "requires_order": Json::boolean(self.conflicts.contains("/cell-order")),
+    "conflicts": Json::array(self.details().map(c => c.to_json())),
   })
 }
 
