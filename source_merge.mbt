@@ -42,6 +42,76 @@ fn source_edit(base : Array[String], changed : Array[String]) -> SourceEdit {
 }
 
 ///|
+fn unique_lines(lines : Array[String]) -> Map[String, Int32] {
+  let positions : Map[String, Int32] = Map([])
+  for i, line in lines {
+    positions[line] = if positions.contains(line) { -1 } else { i }
+  }
+  positions
+}
+
+///|
+// Only lines unique in all three inputs can split a competing edit. Repeated
+// lines cannot establish which occurrence either branch meant to keep.
+fn compose_anchored_source(
+  base : Array[String],
+  ours : Array[String],
+  theirs : Array[String],
+) -> String? {
+  let bp = unique_lines(base)
+  let op = unique_lines(ours)
+  let tp = unique_lines(theirs)
+  let anchors : Array[(Int32, Int32, Int32)] = []
+  let mut oi = -1
+  let mut ti = -1
+  for i, line in base {
+    if bp[line] == i &&
+      op.get(line) is Some(o) &&
+      o >= 0 &&
+      tp.get(line) is Some(t) &&
+      t >= 0 {
+      if o <= oi || t <= ti {
+        return None
+      }
+      anchors.push((i, o, t))
+      oi = o
+      ti = t
+    }
+  }
+  if anchors.is_empty() {
+    return None
+  }
+  anchors.push((base.length(), ours.length(), theirs.length()))
+  let result = StringBuilder()
+  let mut last_b = 0
+  let mut last_o = 0
+  let mut last_t = 0
+  for anchor in anchors {
+    let (b, o, t) = anchor
+    let before = base[last_b:b].to_owned()
+    let left = ours[last_o:o].to_owned()
+    let right = theirs[last_t:t].to_owned()
+    let selected = if left == right || right == before {
+      left
+    } else if left == before {
+      right
+    } else {
+      return None
+    }
+    for line in selected {
+      result.write_string(line)
+    }
+    if b < base.length() {
+      result.write_string(base[b])
+    }
+    last_b = b + 1
+    last_o = o + 1
+    last_t = t + 1
+  }
+  Some(result.to_string())
+}
+
+///|
 fn compose_source(b : String, o : String, t : String) -> String? {
   if o == t {
     return Some(o)
@@ -73,7 +143,7 @@ fn compose_source(b : String, o : String, t : String) -> String? {
   } else if (if insertion { c.end < a.start } else { c.end <= a.start }) {
     (c, a)
   } else {
-    return None
+    return compose_anchored_source(base, ours, theirs)
   }
   Some(
     base[0:first.start].to_owned().join("") +

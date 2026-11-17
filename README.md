@@ -57,13 +57,15 @@ point rounding; producer metadata retains arbitrary original numeric spellings.
 No legacy ID guessing, notebook trust signatures, DIB conversion,
 general source-line merging or proof of execution-result freshness is implemented.
 
-Bounded source composition is available for unchanged cell kinds with no stored
-outputs or execution counts. Each branch is represented as one contiguous edit
-between its common prefix/suffix lines; disjoint edits merge, including adjacent
-line replacements. Overlaps, competing insertions, insertion-boundary ambiguity,
-and sources above 100,000 UTF-16 units or 4,000 lines remain whole-cell conflicts.
-CRLF, LF and missing final newlines are retained. This is conservative composition,
-not a language-aware merge or a claim of arbitrary multi-hunk support.
+Bounded source composition is available for unchanged cell kinds and attachments
+with no stored outputs or execution counts. Disjoint contiguous edits merge,
+including adjacent line replacements. For more than one edit per branch, lines
+that occur exactly once in all three inputs and stay in the same order can split
+the source into independent regions. A region changed differently by both
+branches requires review. Repeated lines do not qualify as anchors. Without a
+safe partition, overlapping edits, competing insertions and insertion-boundary
+ambiguity remain whole-cell conflicts. The limit is 100,000 UTF-16 units or 4,000
+lines per source. CRLF, LF and missing final newlines are retained.
 
 ## Run
 

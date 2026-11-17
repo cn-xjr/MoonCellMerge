@@ -22,6 +22,27 @@ test "overlap insertion ambiguity and bounded complex spans require review" {
 }
 
 ///|
+test "unique ordered anchors compose separated edits with insertions and deletions" {
+  let b = "a\r\nkeep-1\r\nb\r\nkeep-2\r\nc"
+  let o = "A\r\nextra\r\nkeep-1\r\nb\r\nkeep-2\r\nC"
+  let t = "a\r\nkeep-1\r\nkeep-2\r\nc"
+  let expected = Some("A\r\nextra\r\nkeep-1\r\nkeep-2\r\nC")
+  assert_eq(compose_source(b, o, t), expected)
+  assert_eq(compose_source(b, t, o), expected)
+  assert_eq(
+    compose_source(b, o, "different\r\nkeep-1\r\nb\r\nkeep-2\r\nc"),
+    None,
+  )
+  assert_eq(
+    compose_source(
+      "a\nrepeat\nb\nrepeat\nc", "A\nrepeat\nb\nrepeat\nC", "a\nrepeat\nB\nrepeat\nc",
+    ),
+    None,
+  )
+  assert_eq(compose_source(b, o, "a\r\nkeep-2\r\nb\r\nkeep-1\r\nc"), None)
+}
+
+///|
 test "same-cell source auto merge requires empty execution evidence" {
   fn n(s : String, outputs : String) -> Notebook raise MergeError {
     let v = object(nb(cell("a", "", outputs~)).value)

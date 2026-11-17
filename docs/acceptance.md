@@ -50,9 +50,9 @@ on Linux/macOS. Each successful job leaves acceptance-receipt.json in its runner
 checkout; no receipt is committed into the source tree or published as a package.
 The receipt and detailed command output are printed in the job log.
 
-Current source has 29 library/consumer-facing tests per backend; the independently
-compiled package consumer has two tests plus an executable. Test counts are a
-snapshot, not a completeness claim. CI runs portable workflows on three OSes and
+The acceptance log reports the test count per backend; the independently
+compiled package consumer also runs tests and an executable.
+CI runs portable workflows on three OSes and
 actual native workflows on Linux/macOS. Inspect the exact HEAD's Actions run;
 an older green revision does not establish a newer one passes.
 
@@ -60,8 +60,9 @@ an older green revision does not establish a newer one passes.
 
 - The reader validates the merge-relevant structural subset, not the full
   Jupyter JSON Schema. Unknown metadata/outputs are retained as opaque JSON.
-- The source composer handles bounded disjoint contiguous edits. General
-  multi-hunk merging and competing cell moves remain explicit conflicts.
+- The source composer handles bounded disjoint contiguous edits and multiple
+  changes separated by unique, ordered anchors. Ambiguous edits and competing
+  cell moves remain explicit conflicts.
 - Code is not executed; choosing retained output does not certify freshness.
 - No legacy cell-ID inference, notebook trust/signatures, browser UI or editor
   extension is included. There is no performance advantage claim.
