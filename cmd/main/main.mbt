@@ -22,8 +22,38 @@ async fn execute() -> Int32 {
   let a = @env.args()
   if a.length() < 2 {
     fail(
-      "usage: review BASE OURS THEIRS | inspect REVIEW | inspect-json REVIEW | template REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
+      "usage: validate NOTEBOOK... | review BASE OURS THEIRS | inspect REVIEW | inspect-json REVIEW | template REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
     )
+  }
+  if a[1] == "validate" && a.length() >= 3 {
+    let mut invalid = false
+    for i in 2..<a.length() {
+      let path = a[i]
+      let diagnostic : String? = try {
+        let _ = @merge.read_notebook(read(path))
+        None
+      } catch {
+        @merge.Invalid(message) => Some(message)
+        error => Some(error.to_string())
+      }
+      let result = match diagnostic {
+        None =>
+          Json::object({
+            "path": Json::string(path),
+            "valid": Json::boolean(true),
+          })
+        Some(message) => {
+          invalid = true
+          Json::object({
+            "path": Json::string(path),
+            "valid": Json::boolean(false),
+            "diagnostic": Json::string(message),
+          })
+        }
+      }
+      @stdio.stdout.write(@merge.canonical(result) + "\n")
+    }
+    return if invalid { 2 } else { 0 }
   }
   if (a[1] == "inspect" || a[1] == "inspect-json") && a.length() == 3 {
     let r = @merge.restore_review(read(a[2]))

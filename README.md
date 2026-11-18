@@ -73,6 +73,18 @@ lines per source. CRLF, LF and missing final newlines are retained.
 
 ## Run
 
+Check notebooks before merging or in a pre-commit hook:
+
+```text
+moon run cmd/main -- validate analysis.ipynb report.ipynb
+```
+
+The command writes one JSON record per path, in argument order, with `path`,
+`valid`, and a `diagnostic` for rejected files. It continues after malformed or
+missing files and never writes notebooks. Exit 0 means all passed the reader's
+documented structural subset; exit 2 means at least one failed or arguments
+were invalid. This is not full Jupyter schema validation or code execution.
+
 Pinned compiler/core: `0.10.20+65efd5b93`, official stable feed checked 2026-11-07.
 File CLI supports Wasm and native (C compiler required). Pure library tests target
 Wasm, Wasm-GC, JavaScript and native. Git and MoonBit are the only demo prerequisites.

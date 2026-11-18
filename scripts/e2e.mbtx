@@ -142,4 +142,18 @@ async fn main {
  let _ = run(["review",b,o,t],2)
  @fs.write_file(t,raw)
  let _ = run(["review",b,o,t],0)
+ let before_validation = @fs.read_file(b).text()
+ let invalid_notebook = dir+"/invalid-notebook.ipynb"
+ @fs.write_file(invalid_notebook,"{")
+ let validation = run(["validate",b,invalid_notebook,dir+"/missing.ipynb",t],2)
+ let results : Array[Json] = []
+ for line in validation.trim().split("\n") { results.push(@json.parse(line.to_owned())) }
+ assert_eq(results.length(),4)
+ for i in 0..<results.length() {
+  guard results[i] is Object(result) else { fail("Expected validation record") }
+  assert_eq(result["valid"],Json::boolean(i == 0 || i == 3))
+ }
+ assert_eq(@fs.read_file(b).text(),before_validation)
+ let _ = run(["validate",b,t],0)
+ let _ = run(["validate"],2)
 }

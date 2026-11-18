@@ -43,6 +43,7 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Independent producer metadata and insertions into distinct cell gaps | scripts/e2e.mbtx; notebook_metadata_wbtest.mbt; order_merge_wbtest.mbt |
 | Delete/edit, stale output evidence and explicit decisions | merge_wbtest.mbt; decisions_wbtest.mbt |
 | Read versioned JSON conflict reports in automation | scripts/e2e.mbtx; consumer_test.mbt |
+| Batch validation continues after malformed and missing files without changing inputs | scripts/e2e.mbtx |
 | Real Git merge with spaced paths, three index stages, abort and reviewed merge commit | scripts/git_e2e.mbtx |
 | Downstream tool uses only the packaged public API | scripts/consumer.mbtx; examples/consumer |
 
