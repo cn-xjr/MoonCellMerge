@@ -41,6 +41,9 @@ opaque values. Numbers retain exact JSON spellings, including integers beyond
 2^53. Duplicate keys fail. Object keys sort deterministically; whitespace and
 original key order are not retained. Reader validation covers the structural
 subset needed by merging, not the entire nbformat JSON Schema. No kernel runs.
+When present, attachments must be an object mapping file names to MIME objects.
+Malformed containers fail with an escaped field path. MIME payloads remain
+opaque, including vendor JSON and string-array encodings; no image is decoded.
 The reader validates the envelopes for stream, rich display, execution result
 and error outputs, and reports the cell ID, zero-based output index and field
 on failure. MIME values and unrecognized output types with a nonempty

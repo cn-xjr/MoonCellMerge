@@ -110,6 +110,10 @@ pub fn read_notebook(raw : String) -> Notebook raise MergeError {
     let cm = object(c)
     let _ = source(c)
     let _ = object(cm.get("metadata").unwrap_or(Json::null()))
+    validate_attachments(
+      cm.get("attachments"),
+      "/cells/" + key + "/attachments",
+    )
     match cm.get("cell_type") {
       Some(String("code")) => {
         guard cm.get("outputs") is Some(Array(outputs)) else {
