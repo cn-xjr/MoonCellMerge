@@ -97,3 +97,26 @@ test "Markdown references and attachment updates cannot be mixed across branches
     ),
   )
 }
+
+///|
+test "source changes with retained execution counts require explicit acknowledgment" {
+  fn executed(text : String, count : String) -> Notebook raise MergeError {
+    nb(
+      cell("a", text).replace(
+        old="\"execution_count\":null",
+        new="\"execution_count\":" + count,
+      ),
+    )
+  }
+  let b = executed("old", "0")
+  let o = executed("new", "0")
+  let r = merge(b, o, b)
+  assert_eq(r.conflicts(), ["/cells/a"])
+  assert_eq(merge(b, b, o).conflicts(), r.conflicts())
+  assert_eq(r.resolve({ "/cells/a": Ours }), canonical(o.value))
+  assert_eq(r.resolve({ "/cells/a": Base }), canonical(b.value))
+  let cleared = executed("new", "null")
+  assert_eq(merge(b, cleared, b).resolve(Map([])), canonical(cleared.value))
+  assert_eq(merge(b, b, b).resolve(Map([])), canonical(b.value))
+  assert_eq(restore_review(canonical(r.to_json())).conflicts(), r.conflicts())
+}

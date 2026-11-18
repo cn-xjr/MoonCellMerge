@@ -32,7 +32,8 @@ compose when both branches preserve surviving base order. Different insertions
 into the same gap remain explicit order conflicts; matching insertion blocks
 are retained once. Moves, competing anchors and delete/edit cases are not guessed.
 Incompatible orders require an explicit complete retained-ID array. Delete/edit
-conflicts retain evidence. Changed source with nonempty outputs requires explicit
+conflicts retain evidence. Changed source with nonempty outputs or a non-null
+execution count (including zero) requires explicit
 whole-cell acknowledgment. Outputs are never silently cleared or certified current.
 
 Unknown JSON fields, metadata, attachments and output payloads are retained as

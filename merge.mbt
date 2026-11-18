@@ -274,12 +274,14 @@ fn merge_value(
       !conflicts.contains("/cell-order") {
       conflicts.push("/cell-order")
     }
-    // A source-changing edit with retained output requires an explicit whole-cell
+    // A source-changing edit with retained execution evidence requires a whole-cell
     // choice. We never silently erase execution evidence or certify its freshness.
     if chosen is Some(c) && bi.get(key) is Some(old) && source(c) != source(old) {
-      if object(c).get("outputs") is Some(Array(outputs)) &&
-        !outputs.is_empty() &&
-        !conflicts.contains(path) {
+      let cm = object(c)
+      let has_outputs = cm.get("outputs") is Some(Array(outputs)) &&
+        !outputs.is_empty()
+      let has_count = cm.get("execution_count") is Some(Number(_, ..))
+      if (has_outputs || has_count) && !conflicts.contains(path) {
         conflicts.push(path)
         chosen = match choices.get(path) {
           Some(Base) => bi.get(key)
