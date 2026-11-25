@@ -1,0 +1,78 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/env",
+ "moonbitlang/core/json",
+}
+----
+
+async fn main {
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ let target = @env.args().get(1).unwrap_or("wasm")
+ guard ["wasm","native"].contains(target) else { fail("CLI target must be wasm or native") }
+ let dir = @fs.realpath(@fs.tmpdir(prefix="cellmerge-workflows"))
+ println("Workflow files retained at " + dir)
+ async fn run(command : Array[String], status : Int32) -> String {
+  let args = ["run","--target",target,"cmd/main","--"]
+  for arg in command { args.push(arg) }
+  let result = @shell.Cmd(moon,args).output(timeout_ms=180000)
+  assert_eq(result.exit_code(),status,msg=result.stdout()+result.stderr())
+  result.stdout()
+ }
+ fn parse(text : String) -> Json raise {
+  @json.parse(text,reject_duplicate_keys=true,preserve_number_repr=true)
+ }
+ let report = "fixtures/workflows/report/"
+ let report_out = dir+"/report.ipynb"
+ let report_swapped = dir+"/report-swapped.ipynb"
+ let _ = run(["merge-to",report+"base.ipynb",report+"ours.ipynb",report+"theirs.ipynb",report_out],0)
+ let _ = run(["merge-to",report+"base.ipynb",report+"theirs.ipynb",report+"ours.ipynb",report_swapped],0)
+ let report_text = @fs.read_file(report_out).text()
+ assert_eq(parse(report_text),parse(@fs.read_file(report+"expected.ipynb").text()))
+ assert_true(report_text.contains("\"record_id\":9007199254740993"))
+ assert_eq(report_text,@fs.read_file(report_swapped).text())
+
+ let workshop = "fixtures/workflows/workshop/"
+ let base = workshop+"base.ipynb"
+ let ours = workshop+"ours.ipynb"
+ let theirs = workshop+"theirs.ipynb"
+ let result_path = dir+"/workshop.ipynb"
+ let _ = run(["merge-to",base,ours,theirs,result_path],1)
+ assert_true(!@fs.exists(result_path))
+ let review_path = dir+"/workshop-review.json"
+ @fs.write_file(review_path,run(["review",base,ours,theirs],1))
+ let report_doc = parse(run(["inspect-json",review_path],1))
+ guard report_doc is Object(evidence) && evidence["conflicts"] is Array(items)
+  else { fail("Expected workshop conflict evidence") }
+ assert_eq(evidence["requires_order"],Json::boolean(true))
+ let paths : Array[Json] = []
+ for item in items {
+  guard item is Object(fields) else { fail("Expected conflict object") }
+  paths.push(fields["path"])
+ }
+ assert_eq(paths,["/cells/setup","/cell-order"].map(Json::string))
+ let template = parse(run(["template",review_path],0))
+ guard template is Object(decision) else { fail("Expected decision object") }
+ decision["choices"] = Json::object({"/cells/setup":Json::string("theirs")})
+ decision["order"] = Json::array(["intro","setup","recap","exercise"].map(Json::string))
+ let decision_path = dir+"/workshop-decision.json"
+ @fs.write_file(decision_path,template.stringify())
+ let _ = run(["resolve-to",base,ours,theirs,decision_path,result_path],0)
+ let expected = parse(@fs.read_file(workshop+"expected.ipynb").text())
+ assert_eq(parse(@fs.read_file(result_path).text()),expected)
+
+ // A retained ID list from the previous choice is invalid after opting to delete setup.
+ let deleted_path = dir+"/workshop-deleted.ipynb"
+ decision["choices"] = Json::object({"/cells/setup":Json::string("ours")})
+ @fs.write_file(decision_path,template.stringify())
+ let _ = run(["resolve-to",base,ours,theirs,decision_path,deleted_path],2)
+ assert_true(!@fs.exists(deleted_path))
+ decision["order"] = Json::array(["intro","recap","exercise"].map(Json::string))
+ @fs.write_file(decision_path,template.stringify())
+ let _ = run(["resolve-to",base,ours,theirs,decision_path,deleted_path],0)
+ guard expected is Object(expected_root) && expected_root["cells"] is Array([intro,_,recap,exercise])
+  else { fail("Expected retained workshop cells") }
+ expected_root["cells"] = Json::array([intro,recap,exercise])
+ assert_eq(parse(@fs.read_file(deleted_path).text()),expected)
+ println("Workflow fixtures passed: rich output and attachment rename, delete/edit and cell reordering")
+}

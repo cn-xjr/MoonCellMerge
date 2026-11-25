@@ -4,6 +4,10 @@
   https://github.com/jupyter/nbformat/tree/cfb73afdd2a7f358953f2a34f747fd0d0e9d6288
   retrieved 2026-11-07; BSD-3-Clause, notice in fixtures/JUPYTER_LICENSE.
   E2E changes temporary copies of cell source, not this original fixture.
+- fixtures/workflows/: project-authored Apache-2.0 notebook snapshots and
+  inline SVG assets. The report and workshop histories use illustrative data.
+  Expected notebooks are authored alongside the inputs, independently of the
+  merge implementation.
 - https://nbformat.readthedocs.io/en/latest/format_description.html is the format
   reference. No documentation prose copied.
 - https://github.com/jupyter/nbdime (BSD-3-Clause): workflow reference, no code or

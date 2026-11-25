@@ -29,6 +29,13 @@ async fn main {
  for name in ["moon.mod","moon.pkg","pkg.generated.mbti","LICENSE","THIRD_PARTY.md","fixtures/JUPYTER_LICENSE","merge.mbt","source_merge.mbt","order_merge.mbt","cmd/main/main.mbt","scripts/e2e.mbtx"] {
   assert_true(entries.contains(name),msg="Missing packaged file: "+name)
  }
+ for scenario in ["report","workshop"] {
+  for snapshot in ["base","ours","theirs","expected"] {
+   let entry = "fixtures/workflows/"+scenario+"/"+snapshot+".ipynb"
+   assert_true(entries.contains(entry),msg="Missing packaged fixture: "+entry)
+  }
+ }
+ assert_true(entries.contains("scripts/workflows_e2e.mbtx"))
  let library = dir+"/library"
  let consumer = dir+"/consumer"
  @fs.mkdir(library)

@@ -13,6 +13,9 @@
 !/cmd/**/pkg.generated.mbti
 !/fixtures/
 !/fixtures/*.ipynb
+!/fixtures/workflows/
+!/fixtures/workflows/*/
+!/fixtures/workflows/*/*.ipynb
 !/fixtures/JUPYTER_LICENSE
 !/scripts/
 !/scripts/*.mbtx

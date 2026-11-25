@@ -104,6 +104,12 @@ merge, conflicts, resolution, stale decisions, malformed input and recovery.
 It prints and retains its isolated temporary directory, including merged.ipynb.
 No private service, database, publisher account or Python runtime is needed.
 
+Run `moon run scripts/workflows_e2e.mbtx wasm` to check two standalone Jupyter
+workflows against the expected notebooks in `fixtures/workflows/`. The field
+report pairs an attachment rename with a rich output update in another cell.
+The workshop requires a decision for a deleted or edited cell and a complete
+retained-ID order after both branches rearrange cells.
+
 Inspect saved conflicts with `moon run cmd/main -- inspect REVIEW.json` (exit 1
 when conflicts remain). The public `Review::details` and `Review::to_text` expose
 all three snapshots, conflict kinds and actionable selection guidance. Missing
