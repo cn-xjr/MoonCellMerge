@@ -1,6 +1,6 @@
 ///|
-/// Empty choices deliberately remain incomplete when the review has conflicts.
-/// No side is silently selected for the reviewer.
+/// Add choices for value conflicts and a complete `order` for an order
+/// conflict. The template never selects a side or order for the reviewer.
 pub fn Review::decision_template(self : Review) -> Json {
   Json::object({ "review": self.to_json(), "choices": Json::empty_object() })
 }

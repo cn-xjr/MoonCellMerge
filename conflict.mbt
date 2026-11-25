@@ -116,9 +116,11 @@ pub fn Review::to_text(self : Review) -> String raise MergeError {
     lines.push("  base: " + canonical(c.base))
     lines.push("  ours: " + canonical(c.ours))
     lines.push("  theirs: " + canonical(c.theirs))
-    lines.push(
-      "  Select base/ours/theirs; /cell-order also needs a complete retained-ID array.",
-    )
+    if c.path == "/cell-order" {
+      lines.push("  Set order to every retained cell ID exactly once.")
+    } else {
+      lines.push("  Select base/ours/theirs for this path.")
+    }
   }
   lines.join("\n")
 }

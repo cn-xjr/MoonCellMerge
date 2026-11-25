@@ -428,14 +428,22 @@ pub fn Review::resolve(
   choices : Map[String, Choice],
   order? : Array[String],
 ) -> String raise MergeError {
-  if choices.length() != self.conflicts.length() ||
-    !self.conflicts.iter().all(k => choices.contains(k)) {
-    raise Invalid(
-      "Supply exactly one choice for every conflict; no unknown choices",
-    )
-  }
-  if order is Some(_) && !self.conflicts.contains("/cell-order") {
+  let has_order_conflict = self.conflicts.contains("/cell-order")
+  if order is Some(_) && !has_order_conflict {
     raise Invalid("Unexpected custom order")
+  }
+  let mut known = 0
+  for path in self.conflicts {
+    if choices.contains(path) {
+      known += 1
+    } else if path != "/cell-order" {
+      raise Invalid("Missing choice for " + Json::string(path).stringify())
+    } else if order is None {
+      raise Invalid("Order conflict requires an explicit complete order array")
+    }
+  }
+  if choices.length() != known {
+    raise Invalid("Choices contain paths that are not in the review")
   }
   let (value, actual) = merge_value(self, choices, order_override?=order)
   if actual.contains("/cell-order") && order is None {

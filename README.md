@@ -123,14 +123,17 @@ Root-field conflicts use `/notebook/<escaped-key>`, cell conflicts use
 `/cells/<id>`, and order uses `/cell-order`; extension keys cannot collide with
 the reserved cell/order namespace. Keys use JSON Pointer escaping.
 
-Build a decision JSON object containing `review` (the entire saved envelope), `choices`
-(each conflict path mapped to `base`, `ours` or `theirs`), and, for `/cell-order`,
-an `order` array listing every retained ID exactly once. Clean reviews use empty
-choices. Missing, duplicate, unknown or stale decisions fail.
+Build a decision JSON object containing `review` (the entire saved envelope) and
+`choices` (each value conflict path mapped to `base`, `ours` or `theirs`).
+For `/cell-order`, add an `order` array listing every retained ID exactly once
+after resolving the value conflicts. If order is the only conflict, use
+`"choices": {}`. Older decisions that also select a side for `/cell-order`
+remain valid. The explicit array determines the result. Missing, duplicate,
+unknown or stale decisions fail.
 
 Generate the complete input-bound skeleton without hand-copying JSON:
 `moon run cmd/main -- template REVIEW.json`. Fill its initially empty `choices`
-object and optional `order`. The library exposes `Review::decision_template`
+object and add `order` when required. The library exposes `Review::decision_template`
 and `Review::apply_decisions`; CLI and downstream consumers use the same strict
 validation and exact-input binding. An empty template never accepts conflicts.
 
