@@ -22,6 +22,25 @@ test "overlap insertion ambiguity and bounded complex spans require review" {
 }
 
 ///|
+test "equivalent repeated-line edit locations must all be safely separated" {
+  let base = "x\nx\n"
+  let removed = "x\n"
+  let replaced = "X\nx\n"
+  assert_eq(compose_source(base, removed, replaced), None)
+  assert_eq(compose_source(base, replaced, removed), None)
+  assert_eq(compose_source(base, "x\nx\nx\n", replaced), None)
+  assert_eq(compose_source("p\nq\np\nq\n", "p\nq\n", "P\nq\np\nq\n"), None)
+  assert_eq(
+    compose_source("x\r\nx\r\nend", "x\r\nend", "x\r\nx\r\nEND"),
+    Some("x\r\nEND"),
+  )
+  assert_eq(
+    compose_source("x\nx\nkeep\nend", "x\nx\nx\nkeep\nend", "x\nx\nkeep\nEND"),
+    Some("x\nx\nx\nkeep\nEND"),
+  )
+}
+
+///|
 test "unique ordered anchors compose separated edits with insertions and deletions" {
   let b = "a\r\nkeep-1\r\nb\r\nkeep-2\r\nc"
   let o = "A\r\nextra\r\nkeep-1\r\nb\r\nkeep-2\r\nC"

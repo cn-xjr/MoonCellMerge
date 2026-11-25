@@ -1,5 +1,6 @@
 ///|
 priv struct SourceEdit {
+  earliest_start : Int32
   start : Int32
   end : Int32
   replacement : Array[String]
@@ -32,13 +33,40 @@ fn source_edit(base : Array[String], changed : Array[String]) -> SourceEdit {
         base[start] == changed[start] {
     start += 1
   }
-  let mut end = base.length()
-  let mut tail = changed.length()
-  while end > start && tail > start && base[end - 1] == changed[tail - 1] {
-    end -= 1
-    tail -= 1
+  // Match the suffix independently. When it overlaps the common prefix,
+  // an equally short insertion or deletion can slide across that overlap.
+  let mut base_suffix = base.length()
+  let mut changed_suffix = changed.length()
+  while base_suffix > 0 &&
+        changed_suffix > 0 &&
+        base[base_suffix - 1] == changed[changed_suffix - 1] {
+    base_suffix -= 1
+    changed_suffix -= 1
   }
-  { start, end, replacement: changed[start:tail].to_owned(), }
+  let suffix_start = if base_suffix < changed_suffix {
+    base_suffix
+  } else {
+    changed_suffix
+  }
+  let earliest_start = if suffix_start < start { suffix_start } else { start }
+  let shift = start - earliest_start
+  {
+    earliest_start,
+    start,
+    end: base_suffix + shift,
+    replacement: changed[start:changed_suffix + shift].to_owned(),
+  }
+}
+
+///|
+// The chosen edit is the rightmost placement. Its end must precede even
+// the leftmost placement of the other edit; touching an insertion is unsafe.
+fn source_edit_precedes(first : SourceEdit, second : SourceEdit) -> Bool {
+  if first.start == first.end || second.start == second.end {
+    first.end < second.earliest_start
+  } else {
+    first.end <= second.earliest_start
+  }
 }
 
 ///|
@@ -133,15 +161,12 @@ fn compose_source(b : String, o : String, t : String) -> String? {
   }
   let a = source_edit(base, ours)
   let c = source_edit(base, theirs)
-  let insertion = a.start == a.end || c.start == c.end
-  let (first, second) = if (if insertion {
-      a.end < c.start
-    } else {
-      a.end <= c.start
-    }) {
+  let (first, second) = if source_edit_precedes(a, c) {
     (a, c)
-  } else if (if insertion { c.end < a.start } else { c.end <= a.start }) {
+  } else if source_edit_precedes(c, a) {
     (c, a)
+  } else if a.earliest_start < a.start || c.earliest_start < c.start {
+    return None
   } else {
     return compose_anchored_source(base, ours, theirs)
   }

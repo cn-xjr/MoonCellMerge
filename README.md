@@ -63,9 +63,13 @@ general source-line merging or proof of execution-result freshness is implemente
 
 Bounded source composition is available for unchanged cell kinds and attachments
 with no stored outputs or execution counts. Disjoint contiguous edits merge,
-including adjacent line replacements. For more than one edit per branch, lines
-that occur exactly once in all three inputs and stay in the same order can split
-the source into independent regions. A region changed differently by both
+including adjacent line replacements. If repeated lines allow an insertion or
+deletion in several equivalent positions, it merges only when every position
+stays clear of the other branch's edit. For example, deleting one of two
+identical lines while the other branch edits the first line requires review.
+For more than one edit per branch, lines that occur exactly once in all three
+inputs and stay in the same order can split the source into independent regions.
+A region changed differently by both
 branches requires review. Repeated lines do not qualify as anchors. Without a
 safe partition, overlapping edits, competing insertions and insertion-boundary
 ambiguity remain whole-cell conflicts. The limit is 100,000 UTF-16 units or 4,000

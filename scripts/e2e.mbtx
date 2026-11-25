@@ -119,6 +119,23 @@ async fn main {
  let _ = run(["merge-to",b,o,t,source_output],0)
  let source_text = @fs.read_file(source_output).text()
  assert_true(source_text.contains("ours-a\\nkeep-1\\ntheirs-b\\nkeep-2\\nours-c\\n"))
+ @fs.write_file(b,edit(raw,0,"x\nx\n"))
+ @fs.write_file(o,edit(raw,0,"x\n"))
+ @fs.write_file(t,edit(raw,0,"X\nx\n"))
+ let ambiguous_output = dir+"/ambiguous-source.ipynb"
+ let _ = run(["merge-to",b,o,t,ambiguous_output],1)
+ assert_true(!@fs.exists(ambiguous_output))
+ let ambiguous_review = dir+"/ambiguous-review.json"
+ @fs.write_file(ambiguous_review,run(["review",b,o,t],1))
+ let evidence = @json.parse(run(["inspect-json",ambiguous_review],1))
+ guard evidence is Object(fields) && fields["conflicts"] is Array([Object(item)]) &&
+  item["base"] is Object(base_evidence) && base_evidence["value"] is Object(original) &&
+  item["ours"] is Object(ours_evidence) && ours_evidence["value"] is Object(removed) &&
+  item["theirs"] is Object(theirs_evidence) && theirs_evidence["value"] is Object(replaced)
+  else { fail("Expected three-way source conflict evidence") }
+ assert_eq(original["source"],Json::string("x\nx\n"))
+ assert_eq(removed["source"],Json::string("x\n"))
+ assert_eq(replaced["source"],Json::string("X\nx\n"))
  fn inserted(raw : String, at : Int, key : String) -> String raise {
   let v = @json.parse(raw,preserve_number_repr=true)
   guard v is Object(m) && m["cells"] is Array(a) else { fail("Insertion fixture") }
