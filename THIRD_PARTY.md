@@ -3,7 +3,8 @@
 - fixtures/upstream.ipynb: unmodified tests/test4.5.ipynb from
   https://github.com/jupyter/nbformat/tree/cfb73afdd2a7f358953f2a34f747fd0d0e9d6288
   retrieved 2026-11-07; BSD-3-Clause, notice in fixtures/JUPYTER_LICENSE.
-  E2E changes temporary copies of cell source, not this original fixture.
+  The driver bundle includes this fixture and three source-edited demo copies,
+  with the BSD-3-Clause notice distributed as JUPYTER_LICENSE.
 - fixtures/workflows/: project-authored Apache-2.0 notebook snapshots and
   inline SVG assets. The report and workshop histories use illustrative data.
   Expected notebooks are authored alongside the inputs, independently of the

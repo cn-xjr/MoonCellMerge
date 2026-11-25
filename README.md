@@ -169,7 +169,13 @@ durability. The Git driver's overwrite behavior is documented separately below.
 
 ## Git driver
 
-Configure the consuming repository locally (replace the absolute checkout path):
+Download the prebuilt Wasm driver from a successful main-branch build in
+[GitHub Actions](https://github.com/cn-xjr/MoonCellMerge/actions/workflows/ci.yml).
+The [Git quickstart](docs/git-quickstart.md) shows how to use the bundle to
+complete a clean merge and recover from a conflict in a new repository.
+
+For a source checkout, build the driver and configure the consuming repository
+locally (replace the absolute checkout path):
 
 ```text
 moon build --target wasm cmd/main
@@ -189,7 +195,8 @@ It verifies clean auto-merge, unchanged OURS on conflict, all three index stages
 merge abort/retry, template-based resolution and the final Git merge commit.
 Temporary repositories have synthetic fixture-only authors and no remotes;
 your repository configuration/history is not modified. `CELLMERGE_MOONRUN` may
-select a particular moonrun executable. Artifacts are retained for inspection.
+select a particular moonrun executable. Add a new directory path as an argument
+to copy the tested Wasm, demo inputs and notices into a standalone bundle.
 
 ## Library and adoption
 

@@ -53,6 +53,20 @@ on Linux/macOS. Each successful job leaves acceptance-receipt.json in its runner
 checkout; no receipt is committed into the source tree or published as a package.
 The receipt and detailed command output are printed in the job log.
 
+The optional final argument to the acceptance command names a fresh driver
+bundle directory. For example:
+
+```text
+moon run scripts/acceptance.mbtx portable new-receipt.json new-driver-bundle
+```
+
+The bundle uses the same Wasm and notebook input bytes exercised by the real Git
+tests. It includes the quickstart, tested MoonRun version, licenses and a copy of
+the acceptance receipt. Successful `main` jobs upload their bundles to GitHub
+Actions as `mooncellmerge-driver-Linux`, `mooncellmerge-driver-macOS`, and
+`mooncellmerge-driver-Windows`. The OS suffix identifies the job that ran the
+tests. [Use the downloaded driver](git-quickstart.md).
+
 The acceptance log reports the test count per backend; the independently
 compiled package consumer also runs tests and an executable.
 CI runs portable workflows on three OSes and

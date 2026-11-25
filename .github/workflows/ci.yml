@@ -20,8 +20,16 @@ jobs:
       - run: moon fmt --check scripts/acceptance.mbtx
       - run: moon check scripts/acceptance.mbtx --deny-warn
       - if: runner.os == 'Windows'
-        run: moon run scripts/acceptance.mbtx portable acceptance-receipt.json
+        run: moon run scripts/acceptance.mbtx portable acceptance-receipt.json driver-bundle
       - if: runner.os != 'Windows'
-        run: moon run scripts/acceptance.mbtx native acceptance-receipt.json
+        run: moon run scripts/acceptance.mbtx native acceptance-receipt.json driver-bundle
       - name: Verify generated interfaces remain unchanged
         run: git diff --exit-code -- pkg.generated.mbti cmd/main/pkg.generated.mbti
+      - name: Upload verified Git driver
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mooncellmerge-driver-${{ runner.os }}
+          path: driver-bundle/
+          if-no-files-found: error
+          retention-days: 30

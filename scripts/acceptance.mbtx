@@ -6,11 +6,15 @@ import {
 ----
 async fn main {
  let args = @env.args()
- guard args.length() == 3 && ["portable","native"].contains(args[1]) else {
-  fail("usage: moon run scripts/acceptance.mbtx portable|native NEW_RECEIPT.json")
+ guard (args.length() == 3 || args.length() == 4) && ["portable","native"].contains(args[1]) else {
+  fail("usage: moon run scripts/acceptance.mbtx portable|native NEW_RECEIPT.json [NEW_BUNDLE_DIRECTORY]")
  }
  let destination = args[2]
  guard !@fs.exists(destination) else { fail("Receipt already exists; select a fresh output path") }
+ let bundle = args.get(3)
+ if bundle is Some(path) && (@fs.exists(path) || path == destination) {
+  fail("Select a new bundle directory separate from the receipt path")
+ }
  let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
  async fn checked(program : String, args : Array[String]) -> String {
   let p = @shell.Cmd(program,args).output(timeout_ms=300000)
@@ -40,18 +44,24 @@ async fn main {
  }
  let _ = checked(moon,["run","scripts/e2e.mbtx","wasm"])
  let _ = checked(moon,["run","scripts/workflows_e2e.mbtx","wasm"])
- let _ = checked(moon,["run","scripts/git_e2e.mbtx"])
  if args[1] == "native" {
   let _ = checked(moon,["run","scripts/e2e.mbtx","native"])
   let _ = checked(moon,["run","scripts/workflows_e2e.mbtx","native"])
  }
+ let driver_test = ["run","scripts/git_e2e.mbtx"]
+ if bundle is Some(path) { driver_test.push(path) }
+ let _ = checked(moon,driver_test)
  assert_eq(checked("git",["rev-parse","HEAD"]),commit,msg="HEAD changed while validating")
  let receipt = Json::object({"version":Json::number(1),"commit":Json::string(commit),
   "dirty_workspace":Json::boolean(dirty),"moon_version":Json::string(version),
   "fixture_git_blob":Json::string(fixture),"result":Json::string("passed"),
   "executed_targets":Json::array(targets.map(Json::string)),"native_executed":Json::boolean(args[1] == "native"),
   "real_git_merge_executed":Json::boolean(true),"packaged_consumer_executed":Json::boolean(true)})
- @fs.write_file(destination,receipt.stringify(indent=2)+"\n",create_mode=CreateNew,sync=Full)
+ let receipt_text = receipt.stringify(indent=2)+"\n"
+ @fs.write_file(destination,receipt_text,create_mode=CreateNew,sync=Full)
+ if bundle is Some(path) {
+  @fs.write_file(path+"/acceptance-receipt.json",receipt_text,create_mode=CreateNew,sync=Full)
+ }
  println(receipt.stringify(indent=2))
  println("Acceptance passed; receipt written exclusively to " + destination)
 }

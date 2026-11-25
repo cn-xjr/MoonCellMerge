@@ -5,6 +5,12 @@ import {
 }
 ----
 async fn main {
+ let args = @env.args()
+ guard args.length() <= 2 else { fail("usage: moon run scripts/git_e2e.mbtx [NEW_BUNDLE_DIRECTORY]") }
+ let bundle = args.get(1)
+ if bundle is Some(destination) && @fs.exists(destination) {
+  fail("Driver bundle directory already exists: " + destination)
+ }
  let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
  let runner = @env.get_env_var("CELLMERGE_MOONRUN").unwrap_or("moonrun")
  let raw = @fs.read_file("fixtures/upstream.ipynb").text()
@@ -18,7 +24,7 @@ async fn main {
  let root = @fs.realpath(".")
  let _ = command(moon,["build","--target","wasm","cmd/main"],root,0)
  @fs.mkdir(dir+"/tool with spaces")
- let artifact = dir+"/tool with spaces/main.wasm"
+ let artifact = dir+"/tool with spaces/mooncellmerge.wasm"
  @fs.write_file(artifact,@fs.read_file("_build/wasm/debug/build/cmd/main/main.wasm"))
  fn quote(text : String) -> String {
   "'" + text.replace_all(old="\\",new="/").replace_all(old="'",new="'\"'\"'") + "'"
@@ -30,6 +36,9 @@ async fn main {
   c["source"] = Json::string(text)
   v.stringify()
  }
+ let ours = edited(raw,0,"ours-marker")
+ let independent = edited(raw,1,"theirs-marker")
+ let competing = edited(raw,0,"theirs-marker")
  for conflict in [false,true] {
   let repo = dir + (if conflict { "/conflict repo" } else { "/clean repo" })
   @fs.mkdir(repo)
@@ -50,12 +59,11 @@ async fn main {
   let _ = git(["add","--",".gitattributes","analysis with spaces.ipynb"],0)
   let _ = git(["commit","-m","fixture baseline"],0)
   let _ = git(["checkout","-b","feature"],0)
-  let theirs = edited(raw,if conflict { 0 } else { 1 },"theirs-marker")
+  let theirs = if conflict { competing } else { independent }
   @fs.write_file(repo+"/analysis with spaces.ipynb",theirs)
   let _ = git(["add","--","analysis with spaces.ipynb"],0)
   let _ = git(["commit","-m","fixture feature"],0)
   let _ = git(["checkout","main"],0)
-  let ours = edited(raw,0,"ours-marker")
   @fs.write_file(repo+"/analysis with spaces.ipynb",ours)
   let _ = git(["add","--","analysis with spaces.ipynb"],0)
   let _ = git(["commit","-m","fixture main"],0)
@@ -93,4 +101,24 @@ async fn main {
   }
  }
  println("Real Git merge, conflict stages, abort, explicit resolution and merge commit passed")
+ if bundle is Some(destination) {
+  let runner_version = command(runner,["--version"],root,0)
+  @fs.mkdir(destination,allow_exist=false)
+  @fs.mkdir(destination+"/demo",allow_exist=false)
+  // Copy exactly the Wasm and input bytes used by the Git tests above.
+  for (source,name) in [
+   (artifact,"mooncellmerge.wasm"),
+   ("docs/git-quickstart.md","QUICKSTART.md"),
+   ("LICENSE","LICENSE"),
+   ("THIRD_PARTY.md","THIRD_PARTY.md"),
+   ("fixtures/JUPYTER_LICENSE","JUPYTER_LICENSE"),
+  ] {
+   @fs.write_file(destination+"/"+name,@fs.read_file(source),create_mode=CreateNew)
+  }
+  for (name,text) in [("base",raw),("ours",ours),("independent",independent),("competing",competing)] {
+   @fs.write_file(destination+"/demo/"+name+".ipynb",text,create_mode=CreateNew)
+  }
+  @fs.write_file(destination+"/moonrun-version.txt",runner_version,create_mode=CreateNew)
+  println("Verified driver bundle written to " + destination)
+ }
 }
