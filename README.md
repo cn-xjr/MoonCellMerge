@@ -151,6 +151,42 @@ Resolved JSON goes to stdout. Do not redirect onto an input file. Review/resolve
 do not write destinations. Whole-cell selection acknowledges all its values,
 including potentially stale output; it does not establish scientific correctness.
 
+### Resolve individual fields
+
+If both branches retain an existing cell, field review lets you choose its
+conflicting content, top-level metadata keys, and extension fields separately.
+For example, choosing one branch's source can preserve a review tag added by
+the other branch. Contents still move as a group with cell type, attachments,
+outputs and execution count. Added or deleted cells retain whole-cell decisions.
+
+```text
+moon run cmd/main -- inspect-fields REVIEW.json
+moon run cmd/main -- template-fields REVIEW.json
+```
+
+Save the second command's output and fill its `choices` using the exact paths
+from the first command. A version 2 decision file uses the same saved `review`
+envelope and the same `resolve` or `resolve-to` command. For example, set
+`"/cells/analysis/content": "ours"` to select that content group, or use
+`"/cells/analysis/metadata/reviewer": "theirs"` for a conflicting metadata key.
+The `order` array continues to specify every retained ID when order conflicts.
+The original `inspect`, `inspect-json`, and `template` commands still support
+the existing whole-cell workflow.
+
+To supply new source for a content conflict, set the choice to an object.
+
+```json
+{"source":"total = sum(samples)\n","execution":"clear"}
+```
+
+`clear` explicitly discards the saved code outputs and resets the execution
+count in the result. Use `require-empty` when all three versions have empty
+execution evidence. Attachments must be absent or identically empty, and the
+cell type must agree across all inputs. For other content conflicts, select
+a branch to preserve its attachment and execution evidence. The library
+exposes `Review::field_details`, `Review::field_conflict_report`,
+`Review::field_decision_template`, and `Review::resolve_fields`.
+
 For a destination file, use exclusive creation instead of shell redirection:
 
 ```text

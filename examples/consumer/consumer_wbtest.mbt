@@ -28,4 +28,9 @@ test "public review roundtrip and strict decisions" {
   assert_true((try { let _ = restored.apply_decisions(@cells.canonical(restored.decision_template())); false } catch { _ => true }))
   let output = restored.resolve({"/cells/a": @cells.Ours})
   assert_true(output.contains("ours"))
+  assert_eq(restored.field_details().map(c => c.path), ["/cells/a/content"])
+  let combined = restored.resolve_fields({
+    "/cells/a/content": @cells.EditSource("combined", @cells.RequireEmpty),
+  })
+  assert_true(combined.contains("\"source\":\"combined\""))
 }

@@ -35,6 +35,16 @@ pub(all) struct Conflict {
 }
 pub fn Conflict::to_json(Self) -> @json.Json
 
+pub(all) enum ExecutionPolicy {
+  RequireEmpty
+  ClearExecution
+}
+
+pub(all) enum FieldDecision {
+  Take(Choice)
+  EditSource(String, ExecutionPolicy)
+}
+
 pub struct Notebook {
   // private fields
 }
@@ -47,7 +57,11 @@ pub fn Review::conflict_report(Self) -> @json.Json raise MergeError
 pub fn Review::conflicts(Self) -> Array[String]
 pub fn Review::decision_template(Self) -> @json.Json
 pub fn Review::details(Self) -> Array[Conflict] raise MergeError
+pub fn Review::field_conflict_report(Self) -> @json.Json raise MergeError
+pub fn Review::field_decision_template(Self) -> @json.Json
+pub fn Review::field_details(Self) -> Array[Conflict] raise MergeError
 pub fn Review::resolve(Self, Map[String, Choice], order? : Array[String]) -> String raise MergeError
+pub fn Review::resolve_fields(Self, Map[String, FieldDecision], order? : Array[String]) -> String raise MergeError
 pub fn Review::to_json(Self) -> @json.Json
 pub fn Review::to_text(Self) -> String raise MergeError
 

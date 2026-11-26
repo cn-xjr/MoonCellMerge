@@ -22,7 +22,7 @@ async fn execute() -> Int32 {
   let a = @env.args()
   if a.length() < 2 {
     fail(
-      "usage: validate NOTEBOOK... | review BASE OURS THEIRS | inspect REVIEW | inspect-json REVIEW | template REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
+      "usage: validate NOTEBOOK... | review BASE OURS THEIRS | inspect REVIEW | inspect-json REVIEW | inspect-fields REVIEW | template REVIEW | template-fields REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
     )
   }
   if a[1] == "validate" && a.length() >= 3 {
@@ -55,19 +55,25 @@ async fn execute() -> Int32 {
     }
     return if invalid { 2 } else { 0 }
   }
-  if (a[1] == "inspect" || a[1] == "inspect-json") && a.length() == 3 {
+  if ["inspect", "inspect-json", "inspect-fields"].contains(a[1]) &&
+    a.length() == 3 {
     let r = @merge.restore_review(read(a[2]))
-    let report = if a[1] == "inspect-json" {
-      @merge.canonical(r.conflict_report())
-    } else {
-      r.to_text()
+    let report = match a[1] {
+      "inspect-json" => @merge.canonical(r.conflict_report())
+      "inspect-fields" => @merge.canonical(r.field_conflict_report())
+      _ => r.to_text()
     }
     @stdio.stdout.write(report + "\n")
     return if r.conflicts().is_empty() { 0 } else { 1 }
   }
-  if a[1] == "template" && a.length() == 3 {
+  if ["template", "template-fields"].contains(a[1]) && a.length() == 3 {
     let r = @merge.restore_review(read(a[2]))
-    @stdio.stdout.write(@merge.canonical(r.decision_template()) + "\n")
+    let template = if a[1] == "template-fields" {
+      r.field_decision_template()
+    } else {
+      r.decision_template()
+    }
+    @stdio.stdout.write(@merge.canonical(template) + "\n")
     return 0
   }
   if (a[1] == "resolve" && a.length() == 6) ||

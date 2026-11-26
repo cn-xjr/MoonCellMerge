@@ -169,6 +169,18 @@ fn same(a : Json?, b : Json?) -> Bool {
 }
 
 ///|
+// Some(None) means the agreed result is absence.
+fn agreed(base : Json?, ours : Json?, theirs : Json?) -> Json?? {
+  if same(ours, theirs) || same(base, theirs) {
+    Some(ours)
+  } else if same(base, ours) {
+    Some(theirs)
+  } else {
+    None
+  }
+}
+
+///|
 fn pick(
   path : String,
   base : Json?,
@@ -177,19 +189,23 @@ fn pick(
   choices : Map[String, Choice],
   conflicts : Array[String],
 ) -> Json? {
-  if same(ours, theirs) {
-    return ours
-  }
-  if same(base, ours) {
-    return theirs
-  }
-  if same(base, theirs) {
-    return ours
+  if agreed(base, ours, theirs) is Some(value) {
+    return value
   }
   if !conflicts.contains(path) {
     conflicts.push(path)
   }
-  match choices.get(path) {
+  select_side(base, ours, theirs, choices.get(path))
+}
+
+///|
+fn select_side(
+  base : Json?,
+  ours : Json?,
+  theirs : Json?,
+  choice : Choice?,
+) -> Json? {
+  match choice {
     Some(Base) => base
     Some(Theirs) => theirs
     _ => ours
@@ -223,7 +239,7 @@ fn index(value : Json) -> Map[String, Json] raise MergeError {
 }
 
 ///|
-fn pointer(key : String) -> String {
+fn escape_pointer(key : String) -> String {
   let out = StringBuilder()
   for c in key {
     match c {
@@ -232,7 +248,18 @@ fn pointer(key : String) -> String {
       _ => out.write_char(c)
     }
   }
-  "/notebook/" + out.to_string()
+  out.to_string()
+}
+
+///|
+fn pointer(key : String) -> String {
+  "/notebook/" + escape_pointer(key)
+}
+
+///|
+fn has_execution_evidence(m : Map[String, Json]) -> Bool {
+  (m.get("outputs") is Some(Array(outputs)) && !outputs.is_empty()) ||
+  m.get("execution_count") is Some(Number(_, ..))
 }
 
 ///|
@@ -240,6 +267,7 @@ fn merge_value(
   r : Review,
   choices : Map[String, Choice],
   order_override? : Array[String],
+  cell_overrides? : Map[String, Json],
 ) -> (Json, Array[String]) raise MergeError {
   let conflicts : Array[String] = []
   let b = object(r.base.value)
@@ -266,6 +294,10 @@ fn merge_value(
   let ti = index(r.theirs.value)
   let merged : Map[String, Json] = Map([])
   for key in keys3(bi, oi, ti) {
+    if cell_overrides is Some(overrides) && overrides.get(key) is Some(value) {
+      merged[key] = value
+      continue
+    }
     let path = "/cells/" + key
     let composed = compose_cell(bi.get(key), oi.get(key), ti.get(key))
     let mut chosen = if composed is Some(c) {
@@ -281,11 +313,7 @@ fn merge_value(
     // A source-changing edit with retained execution evidence requires a whole-cell
     // choice. We never silently erase execution evidence or certify its freshness.
     if chosen is Some(c) && bi.get(key) is Some(old) && source(c) != source(old) {
-      let cm = object(c)
-      let has_outputs = cm.get("outputs") is Some(Array(outputs)) &&
-        !outputs.is_empty()
-      let has_count = cm.get("execution_count") is Some(Number(_, ..))
-      if (has_outputs || has_count) && !conflicts.contains(path) {
+      if has_execution_evidence(object(c)) && !conflicts.contains(path) {
         conflicts.push(path)
         chosen = match choices.get(path) {
           Some(Base) => bi.get(key)
@@ -428,13 +456,29 @@ pub fn Review::resolve(
   choices : Map[String, Choice],
   order? : Array[String],
 ) -> String raise MergeError {
-  let has_order_conflict = self.conflicts.contains("/cell-order")
+  verify_decisions(
+    self.conflicts,
+    key => choices.contains(key),
+    choices.length(),
+    order,
+  )
+  self.resolve_value(choices, order)
+}
+
+///|
+fn verify_decisions(
+  paths : Array[String],
+  has_choice : (String) -> Bool,
+  choice_count : Int32,
+  order : Array[String]?,
+) -> Unit raise MergeError {
+  let has_order_conflict = paths.contains("/cell-order")
   if order is Some(_) && !has_order_conflict {
     raise Invalid("Unexpected custom order")
   }
   let mut known = 0
-  for path in self.conflicts {
-    if choices.contains(path) {
+  for path in paths {
+    if has_choice(path) {
       known += 1
     } else if path != "/cell-order" {
       raise Invalid("Missing choice for " + Json::string(path).stringify())
@@ -442,10 +486,24 @@ pub fn Review::resolve(
       raise Invalid("Order conflict requires an explicit complete order array")
     }
   }
-  if choices.length() != known {
+  if choice_count != known {
     raise Invalid("Choices contain paths that are not in the review")
   }
-  let (value, actual) = merge_value(self, choices, order_override?=order)
+}
+
+///|
+fn Review::resolve_value(
+  self : Review,
+  choices : Map[String, Choice],
+  order : Array[String]?,
+  cell_overrides? : Map[String, Json],
+) -> String raise MergeError {
+  let (value, actual) = merge_value(
+    self,
+    choices,
+    order_override?=order,
+    cell_overrides?,
+  )
   if actual.contains("/cell-order") && order is None {
     raise Invalid("Order conflict requires an explicit complete order array")
   }

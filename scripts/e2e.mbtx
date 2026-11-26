@@ -100,6 +100,32 @@ async fn main {
  let _ = run(["git-driver",b,o,t],0)
  let composed = @fs.read_file(o).text()
  assert_true(composed.contains("same-cell-source") && composed.contains("independent-metadata"))
+ @fs.write_file(o,edit(raw,0,"ours source"))
+ first["source"] = Json::string("theirs source")
+ @fs.write_file(t,metadata_branch.stringify())
+ let field_review = dir+"/field-review.json"
+ @fs.write_file(field_review,run(["review",b,o,t],1))
+ let field_report = @json.parse(run(["inspect-fields",field_review],1))
+ guard field_report is Object(field_report_map) &&
+  field_report_map["conflicts"] is Array([Object(content)]) &&
+  content["path"] is String(content_path) else { fail("Field report shape") }
+ assert_eq(field_report_map["version"],Json::number(2))
+ assert_eq(content_path,"/cells/2fcdfa53/content")
+ let field_template = @json.parse(run(["template-fields",field_review],0))
+ guard field_template is Object(field_doc) else { fail("Field decision shape") }
+ let field_decisions = dir+"/field-decisions.json"
+ field_doc["choices"] = Json::object(Map([(content_path,Json::string("ours"))]))
+ @fs.write_file(field_decisions,field_template.stringify())
+ let chosen = run(["resolve",b,o,t,field_decisions],0)
+ assert_true(chosen.contains("ours source") && chosen.contains("independent-metadata"))
+ field_doc["choices"] = Json::object(Map([(content_path,Json::object({
+  "source":Json::string("edited source"),"execution":Json::string("require-empty"),
+ }))]))
+ @fs.write_file(field_decisions,field_template.stringify())
+ let field_output = dir+"/field-resolved.ipynb"
+ let _ = run(["resolve-to",b,o,t,field_decisions,field_output],0)
+ let field_result = @fs.read_file(field_output).text()
+ assert_true(field_result.contains("edited source") && field_result.contains("independent-metadata"))
  println("E2E passed: clean merge, conflicts, review resolution, stale decisions, malformed input and recovery")
  let notebook_meta_ours = @json.parse(raw,preserve_number_repr=true)
  let notebook_meta_theirs = @json.parse(raw,preserve_number_repr=true)

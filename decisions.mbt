@@ -6,6 +6,45 @@ pub fn Review::decision_template(self : Review) -> Json {
 }
 
 ///|
+/// Build an input-bound version 2 template for field-level decisions.
+pub fn Review::field_decision_template(self : Review) -> Json {
+  Json::object({
+    "version": Json::number(2),
+    "review": self.to_json(),
+    "choices": Json::empty_object(),
+  })
+}
+
+///|
+fn parse_side(value : Json) -> Choice raise MergeError {
+  match value {
+    String("base") => Base
+    String("ours") => Ours
+    String("theirs") => Theirs
+    _ => raise Invalid("Choice must be base, ours, or theirs")
+  }
+}
+
+///|
+fn parse_field_decision(value : Json) -> FieldDecision raise MergeError {
+  if value is Object(fields) {
+    guard fields.length() == 2 &&
+      fields.get("source") is Some(String(text)) &&
+      fields.get("execution") is Some(String(execution)) else {
+      raise Invalid("Custom source requires exactly source and execution")
+    }
+    let policy = match execution {
+      "clear" => ClearExecution
+      "require-empty" => RequireEmpty
+      _ => raise Invalid("Execution policy must be clear or require-empty")
+    }
+    EditSource(text, policy)
+  } else {
+    Take(parse_side(value))
+  }
+}
+
+///|
 /// Bind explicit decisions to the exact current three inputs before resolving.
 pub fn Review::apply_decisions(
   self : Review,
@@ -26,14 +65,18 @@ pub fn Review::apply_decisions(
       )
   }
   let m = object(doc)
-  if m.length() < 2 ||
-    m.length() > 3 ||
-    !m.contains("review") ||
-    !m.contains("choices") {
+  if !m.contains("review") || !m.contains("choices") {
     raise Invalid("Decision fields: review, choices, optional order")
   }
-  if m.length() == 3 && !m.contains("order") {
-    raise Invalid("Unknown decision field")
+  for key in m.keys() {
+    if !["review", "choices", "order", "version"].contains(key) {
+      raise Invalid("Unknown decision field")
+    }
+  }
+  let field_level = m.contains("version")
+  if field_level &&
+    structural_integer(m.get("version"), "decision version") != 2 {
+    raise Invalid("Unsupported decision version")
   }
   if canonical(m["review"]) != canonical(self.to_json()) {
     raise Invalid(
@@ -42,15 +85,6 @@ pub fn Review::apply_decisions(
   }
   let _ = restore_review(canonical(m["review"]))
   let c = object(m["choices"])
-  let choices : Map[String, Choice] = Map([])
-  for (key, v) in c {
-    choices[key] = match v {
-      String("base") => Base
-      String("ours") => Ours
-      String("theirs") => Theirs
-      _ => raise Invalid("Choice must be base, ours, or theirs")
-    }
-  }
   let order : Array[String]? = match m.get("order") {
     None => None
     Some(Array(ids)) =>
@@ -64,5 +98,17 @@ pub fn Review::apply_decisions(
       )
     _ => raise Invalid("order must be an array")
   }
-  self.resolve(choices, order?)
+  if field_level {
+    let choices : Map[String, FieldDecision] = Map([])
+    for key, value in c {
+      choices[key] = parse_field_decision(value)
+    }
+    self.resolve_fields(choices, order?)
+  } else {
+    let choices : Map[String, Choice] = Map([])
+    for key, value in c {
+      choices[key] = parse_side(value)
+    }
+    self.resolve(choices, order?)
+  }
 }
