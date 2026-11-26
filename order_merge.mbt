@@ -1,7 +1,6 @@
 ///|
-// Only infer insert/delete composition when every surviving base cell appears
-// in both branches in its original order. Moves and delete/edit decisions stay
-// explicit. Insertions in the same surviving-base gap must agree exactly.
+// Both branches must contain every retained base cell for movement inference.
+// Insertions have to keep their original pair of adjacent anchors.
 fn compose_order(
   b : Json,
   o : Json,
@@ -23,15 +22,25 @@ fn compose_order(
   ) -> Array[String] {
     ids.filter(k => old_ids.contains(k) && kept.contains(k))
   }
-  if old != project(ours, base_ids, retained) ||
-    old != project(theirs, base_ids, retained) {
+  let old_ours = project(ours, base_ids, retained)
+  let old_theirs = project(theirs, base_ids, retained)
+  if old_ours.length() != old.length() || old_theirs.length() != old.length() {
     return None
+  }
+  guard compose_moves(old, old_ours, old_theirs) is Some(ordered) else {
+    return None
+  }
+  let successor : Map[String, String] = Map([])
+  let mut previous = ""
+  for key in ordered {
+    successor[previous] = key
+    previous = key
   }
   fn slots(
     ids : Array[String],
     old_ids : Map[String, Bool],
     kept : Map[String, Json],
-  ) -> Map[String, Array[String]] {
+  ) -> Map[String, Array[String]]? {
     let out : Map[String, Array[String]] = Map([])
     let mut anchor = ""
     for key in ids {
@@ -39,6 +48,9 @@ fn compose_order(
         continue
       }
       if old_ids.contains(key) {
+        if out.contains(anchor) && successor.get(anchor) != Some(key) {
+          return None
+        }
         anchor = key
       } else {
         if !out.contains(anchor) {
@@ -47,12 +59,17 @@ fn compose_order(
         out[anchor].push(key)
       }
     }
-    out
+    if out.contains(anchor) && successor.contains(anchor) {
+      return None
+    }
+    Some(out)
   }
-  let os = slots(ours, base_ids, retained)
-  let ts = slots(theirs, base_ids, retained)
+  guard slots(ours, base_ids, retained) is Some(os) &&
+    slots(theirs, base_ids, retained) is Some(ts) else {
+    return None
+  }
   let anchors = [""]
-  for key in old {
+  for key in ordered {
     anchors.push(key)
   }
   let result : Array[String] = []

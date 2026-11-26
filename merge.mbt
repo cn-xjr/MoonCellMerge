@@ -362,8 +362,8 @@ fn merge_value(
   fn order(value : Json) -> Json raise MergeError {
     Json::array(cells(value).map(c => Json::string(id(c))))
   }
-  // Compose unambiguous insertion gaps/deletions first; conflicting orders and
-  // moves require review rather than an arbitrary sort of retained cell IDs.
+  // Compose compatible moves and insertion gaps, then fall back to explicit
+  // review when the branches do not determine a safe order.
   let inferred_order = compose_order(
     r.base.value,
     r.ours.value,

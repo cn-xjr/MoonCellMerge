@@ -74,5 +74,23 @@ async fn main {
   else { fail("Expected retained workshop cells") }
  expected_root["cells"] = Json::array([intro,recap,exercise])
  assert_eq(parse(@fs.read_file(deleted_path).text()),expected)
- println("Workflow fixtures passed: rich output and attachment rename, delete/edit and cell reordering")
+
+ // Both branches reorder the same workshop without changing any cell values.
+ let baseline = @fs.read_file(base).text()
+ fn reordered(baseline : String, order : Array[Int32]) -> Json raise {
+  let notebook = parse(baseline)
+  guard notebook is Object(root) && root["cells"] is Array(contents) else {
+   fail("Expected workshop cells")
+  }
+  root["cells"] = Json::array(order.map(index => contents[index]))
+  notebook
+ }
+ let first_move = dir+"/workshop-first-move.ipynb"
+ let second_move = dir+"/workshop-second-move.ipynb"
+ @fs.write_file(first_move,reordered(baseline,[1,0,2,3]).stringify())
+ @fs.write_file(second_move,reordered(baseline,[0,1,3,2]).stringify())
+ let moved = dir+"/workshop-combined-moves.ipynb"
+ let _ = run(["merge-to",base,first_move,second_move,moved],0)
+ assert_eq(parse(@fs.read_file(moved).text()),reordered(baseline,[1,0,3,2]))
+ println("Workflow fixtures passed: rich output, attachment rename, delete/edit and independent cell moves")
 }

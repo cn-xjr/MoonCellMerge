@@ -26,11 +26,16 @@ outputs, execution_count and attachments are one atomic group. This prevents
 mixing one branch's code with the other's execution evidence, or inserting a
 Markdown reference while the other branch removes its image. Source composition
 requires unchanged attachments. Nested metadata remains atomic.
-Single-sided insert/delete/move works;
-simultaneous deletions and insertions into different surviving-base gaps also
-compose when both branches preserve surviving base order. Different insertions
-into the same gap remain explicit order conflicts; matching insertion blocks
-are retained once. Moves, competing anchors and delete/edit cases are not guessed.
+Single-sided insertions, deletions and moves work. The merger also combines
+independent moves of retained cells. It keeps the base order of each pair
+unless either branch reverses it, then checks that all pair constraints agree.
+For example, swapping the first two cells on one branch and the last two on
+the other preserves both swaps. An insertion combines with moves when its
+original gap stays intact in the resulting order. Different insertions into
+the same gap require review, and matching insertion blocks are retained once.
+The order composer checks up to 512 cells per window where both branches
+changed the order differently. A notebook can have many independent windows.
+Cycles, displaced insertion anchors and oversized shared windows require review.
 Incompatible orders require an explicit complete retained-ID array. Delete/edit
 conflicts retain evidence. Changed source with nonempty outputs or a non-null
 execution count (including zero) requires explicit
@@ -111,7 +116,8 @@ Run `moon run scripts/workflows_e2e.mbtx wasm` to check two standalone Jupyter
 workflows against the expected notebooks in `fixtures/workflows/`. The field
 report pairs an attachment rename with a rich output update in another cell.
 The workshop requires a decision for a deleted or edited cell and a complete
-retained-ID order after both branches rearrange cells.
+retained-ID order after both branches rearrange cells. It also demonstrates
+automatic composition when each branch swaps cells at opposite ends.
 
 Inspect saved conflicts with `moon run cmd/main -- inspect REVIEW.json` (exit 1
 when conflicts remain). The public `Review::details` and `Review::to_text` expose
@@ -320,5 +326,5 @@ moonrockz/notebooks supplies codecs, forey217/moonconfig generic JSON merging an
 mizchi/bit_diff3 text merging. This project handles notebook cell/order/output
 decisions. None of those implementations or tests have been copied.
 
-Planned, not implemented: arbitrary multi-hunk source merging, simultaneous move reasoning,
+Planned, not implemented: arbitrary multi-hunk source merging,
 browser review and editor integrations. No artificial commit-count target.
