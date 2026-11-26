@@ -1,0 +1,82 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/env", "moonbitlang/core/json",
+}
+----
+async fn main {
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ let target = @env.args().get(1).unwrap_or("wasm")
+ guard ["wasm","native"].contains(target) else { fail("CLI target must be wasm or native") }
+ let dir = @fs.realpath(@fs.tmpdir(prefix="cellmerge-large"))
+ async fn run(command : Array[String], status : Int32) -> String {
+  let args = ["run","--target",target,"cmd/main","--"]
+  for arg in command { args.push(arg) }
+  let result = @shell.Cmd(moon,args).output(timeout_ms=180000)
+  assert_eq(result.exit_code(),status,msg=result.stdout()+result.stderr())
+  result.stdout()
+ }
+ fn parse(text : String) -> Json raise {
+  @json.parse(text,reject_duplicate_keys=true,preserve_number_repr=true)
+ }
+ let raw = @fs.read_file("fixtures/workflows/report/expected.ipynb").text()
+ // An SVG comment keeps the attachment valid while reproducing a large payload.
+ let padding = "<!--" + "x".repeat(360_000) + "-->"
+ fn snapshot(title : String, team : Bool) -> String raise {
+  let notebook = parse(raw)
+  guard notebook is Object(root) && root["cells"] is Array([Object(report),Object(summary)]) &&
+   report["attachments"] is Object(attachments) && attachments["map-final.svg"] is Object(image) &&
+   image["image/svg+xml"] is String(svg) && summary["metadata"] is Object(metadata)
+   else { fail("Expected report fixture with SVG and rich output") }
+  image["image/svg+xml"] = Json::string(padding + svg)
+  report["source"] = Json::string(title + "\n![Survey map](attachment:map-final.svg)\n")
+  if team { metadata["reviewer"] = Json::string("field-team") }
+  notebook.stringify()
+ }
+ let b = dir+"/base.ipynb"
+ let o = dir+"/ours.ipynb"
+ let t = dir+"/theirs.ipynb"
+ let base = snapshot("Baseline",false)
+ let ours = snapshot("Survey report",false)
+ let theirs = snapshot("Baseline",true)
+ assert_true(base.length()+ours.length()+theirs.length() > 1_000_000)
+ @fs.write_file(b,base)
+ @fs.write_file(o,ours)
+ @fs.write_file(t,theirs)
+ let _ = run(["validate",b,o,t],0)
+ let clean = dir+"/clean.ipynb"
+ let _ = run(["merge-to",b,o,t,clean],0)
+ let expected = parse(snapshot("Survey report",true))
+ assert_eq(parse(@fs.read_file(clean).text()),expected)
+ let competing = snapshot("Competing introduction",true)
+ @fs.write_file(t,competing)
+ let review_path = dir+"/review.json"
+ let review = run(["review",b,o,t],1)
+ assert_true(review.length() < 512)
+ assert_eq(review,run(["review-compact",b,o,t],1))
+ @fs.write_file(review_path,review)
+ let _ = run(["inspect-fields",review_path],2)
+ let inspected = parse(run(["inspect-fields",review_path,b,o,t],1))
+ guard inspected is Object(report) && report["conflicts"] is Array([Object(evidence)])
+  else { fail("Expected replayed field conflict") }
+ assert_eq(evidence["path"],Json::string("/cells/report/content"))
+ let template = run(["template-fields",review_path,b,o,t],0)
+ assert_true(template.length() < 1024)
+ let doc = parse(template)
+ guard doc is Object(decision) else { fail("Expected compact decision template") }
+ decision["choices"] = Json::object({"/cells/report/content":Json::string("ours")})
+ let decisions = dir+"/decisions.json"
+ @fs.write_file(decisions,doc.stringify())
+ let result_path = dir+"/resolved.ipynb"
+ @fs.write_file(t,competing+"\n")
+ let _ = run(["inspect-fields",review_path,b,o,t],2)
+ let _ = run(["resolve-to",b,o,t,decisions,result_path],2)
+ assert_true(!@fs.exists(result_path))
+ @fs.write_file(t,competing)
+ let _ = run(["resolve-to",b,o,t,decisions,result_path],0)
+ let result = @fs.read_file(result_path).text()
+ assert_eq(parse(result),expected)
+ assert_true(result.contains("\"record_id\":9007199254740993"))
+ let _ = run(["validate",result_path],0)
+ println("Large notebook compact review passed. Reproducible files retained at "+dir)
+}

@@ -12,6 +12,8 @@ pub fn merge(Notebook, Notebook, Notebook) -> Review raise MergeError
 
 pub fn read_notebook(String) -> Notebook raise MergeError
 
+pub fn restore_compact_review(String, Notebook, Notebook, Notebook) -> Review raise MergeError
+
 pub fn restore_review(String) -> Review raise MergeError
 
 // Errors
@@ -53,6 +55,8 @@ pub struct Review {
   // private fields
 }
 pub fn Review::apply_decisions(Self, String) -> String raise MergeError
+pub fn Review::compact_decision_template(Self, fields? : Bool) -> @json.Json
+pub fn Review::compact_review(Self) -> @json.Json
 pub fn Review::conflict_report(Self) -> @json.Json raise MergeError
 pub fn Review::conflicts(Self) -> Array[String]
 pub fn Review::decision_template(Self) -> @json.Json

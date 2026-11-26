@@ -15,5 +15,9 @@
   tests copied and no claim of identical merge policy.
 - moonbitlang/async@0.22.5 (Apache-2.0): CLI file/process I/O. MoonBit core handles
   JSON parsing with duplicate rejection and exact number representation.
+- moonbitlang/x@0.5.5 (Apache-2.0): SHA-256 and hexadecimal rendering for
+  compact review bindings. Source at https://github.com/moonbitlang/x.
+- scripts/large_review_e2e.mbtx expands the project-authored report SVG at runtime
+  with an XML comment and preserves the existing rich MIME output from the fixture.
 - Root LICENSE is the standard Apache-2.0 license text. Tests were written for
   this project. No external diff executable or Python runtime dependency.

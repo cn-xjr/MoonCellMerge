@@ -35,7 +35,9 @@ async fn main {
    assert_true(entries.contains(entry),msg="Missing packaged fixture: "+entry)
   }
  }
- assert_true(entries.contains("scripts/workflows_e2e.mbtx"))
+ for name in ["review_document.mbt","scripts/workflows_e2e.mbtx","scripts/large_review_e2e.mbtx"] {
+  assert_true(entries.contains(name),msg="Missing packaged sample or review implementation: "+name)
+ }
  let library = dir+"/library"
  let consumer = dir+"/consumer"
  @fs.mkdir(library)

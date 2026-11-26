@@ -2,19 +2,33 @@
 async fn read(path : String) -> String {
   let file = @fs.open(path[:], mode=ReadOnly)
   defer file.close()
-  if file.kind() != Regular || file.size() > 16_000_000L {
+  let size = file.size()
+  if file.kind() != Regular || size > 16_000_000L {
     fail("Expected regular file <= 16 MB: " + path)
   }
-  let bytes : Array[Byte] = []
+  let bytes = @buffer.Buffer(size_hint=size.to_int())
   while file.read_some(max_len=65536) is Some(chunk) {
     if bytes.length() + chunk.length() > 16_000_000 {
       fail("Input exceeds 16 MB")
     }
-    for byte in chunk {
-      bytes.push(byte)
-    }
+    bytes.write_bytesview(chunk)
   }
-  @utf8.decode(Bytes::from_array(bytes[:])[:])
+  @utf8.decode(bytes.to_bytes()[:])
+}
+
+///|
+async fn read_review(args : Array[String]) -> @merge.Review {
+  let text = read(args[2])
+  if args.length() == 6 {
+    @merge.restore_compact_review(
+      text,
+      @merge.read_notebook(read(args[3])),
+      @merge.read_notebook(read(args[4])),
+      @merge.read_notebook(read(args[5])),
+    )
+  } else {
+    @merge.restore_review(text)
+  }
 }
 
 ///|
@@ -22,7 +36,7 @@ async fn execute() -> Int32 {
   let a = @env.args()
   if a.length() < 2 {
     fail(
-      "usage: validate NOTEBOOK... | review BASE OURS THEIRS | inspect REVIEW | inspect-json REVIEW | inspect-fields REVIEW | template REVIEW | template-fields REVIEW | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
+      "usage: validate NOTEBOOK... | review or review-compact BASE OURS THEIRS | inspect, inspect-json, inspect-fields, template or template-fields REVIEW [BASE OURS THEIRS] | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
     )
   }
   if a[1] == "validate" && a.length() >= 3 {
@@ -56,8 +70,8 @@ async fn execute() -> Int32 {
     return if invalid { 2 } else { 0 }
   }
   if ["inspect", "inspect-json", "inspect-fields"].contains(a[1]) &&
-    a.length() == 3 {
-    let r = @merge.restore_review(read(a[2]))
+    (a.length() == 3 || a.length() == 6) {
+    let r = read_review(a)
     let report = match a[1] {
       "inspect-json" => @merge.canonical(r.conflict_report())
       "inspect-fields" => @merge.canonical(r.field_conflict_report())
@@ -66,9 +80,13 @@ async fn execute() -> Int32 {
     @stdio.stdout.write(report + "\n")
     return if r.conflicts().is_empty() { 0 } else { 1 }
   }
-  if ["template", "template-fields"].contains(a[1]) && a.length() == 3 {
-    let r = @merge.restore_review(read(a[2]))
-    let template = if a[1] == "template-fields" {
+  if ["template", "template-fields"].contains(a[1]) &&
+    (a.length() == 3 || a.length() == 6) {
+    let r = read_review(a)
+    let fields = a[1] == "template-fields"
+    let template = if a.length() == 6 {
+      r.compact_decision_template(fields~)
+    } else if fields {
       r.field_decision_template()
     } else {
       r.decision_template()
@@ -106,7 +124,8 @@ async fn execute() -> Int32 {
     @stdio.stdout.write("Created " + Json::string(a[5]).stringify() + "\n")
     return 0
   }
-  if a.length() != 5 || (a[1] != "review" && a[1] != "git-driver") {
+  if a.length() != 5 ||
+    !["review", "review-compact", "git-driver"].contains(a[1]) {
     fail("Invalid arguments; see README usage")
   }
   let r = @merge.merge(
@@ -116,6 +135,8 @@ async fn execute() -> Int32 {
   )
   if a[1] == "review" {
     @stdio.stdout.write(@merge.canonical(r.to_json()) + "\n")
+  } else if a[1] == "review-compact" {
+    @stdio.stdout.write(@merge.canonical(r.compact_review()) + "\n")
   } else if r.conflicts().is_empty() {
     @fs.write_file(a[3], r.resolve(Map([])))
   } else {

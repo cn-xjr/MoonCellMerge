@@ -32,7 +32,7 @@ async fn main {
  let _ = checked(moon,["info"])
  let _ = checked("git",["diff","--exit-code","--","pkg.generated.mbti","cmd/main/pkg.generated.mbti"])
  let _ = checked(moon,["check","--target","all","--deny-warn"])
- for script in ["scripts/e2e.mbtx","scripts/workflows_e2e.mbtx","scripts/git_e2e.mbtx","scripts/consumer.mbtx","scripts/acceptance.mbtx"] {
+ for script in ["scripts/e2e.mbtx","scripts/workflows_e2e.mbtx","scripts/large_review_e2e.mbtx","scripts/git_e2e.mbtx","scripts/consumer.mbtx","scripts/acceptance.mbtx"] {
   let _ = checked(moon,["fmt","--check",script])
   let _ = checked(moon,["check",script,"--deny-warn"])
  }
@@ -44,9 +44,11 @@ async fn main {
  }
  let _ = checked(moon,["run","scripts/e2e.mbtx","wasm"])
  let _ = checked(moon,["run","scripts/workflows_e2e.mbtx","wasm"])
+ let _ = checked(moon,["run","scripts/large_review_e2e.mbtx","wasm"])
  if args[1] == "native" {
   let _ = checked(moon,["run","scripts/e2e.mbtx","native"])
   let _ = checked(moon,["run","scripts/workflows_e2e.mbtx","native"])
+  let _ = checked(moon,["run","scripts/large_review_e2e.mbtx","native"])
  }
  let driver_test = ["run","scripts/git_e2e.mbtx"]
  if bundle is Some(path) { driver_test.push(path) }

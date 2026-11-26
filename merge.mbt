@@ -25,6 +25,9 @@ pub(all) enum Choice {
 }
 
 ///|
+const NotebookLimit = 4_000_000
+
+///|
 fn object(value : Json) -> Map[String, Json] raise MergeError {
   guard value is Object(m) else { raise Invalid("Expected JSON object") }
   m
@@ -66,8 +69,8 @@ fn source(cell : Json) -> String raise MergeError {
 
 ///|
 pub fn read_notebook(raw : String) -> Notebook raise MergeError {
-  if raw.length() > 4_000_000 {
-    raise Invalid("Input exceeds 4 million UTF-16 units")
+  if raw.length() > NotebookLimit {
+    raise Invalid("Notebook input exceeds 4 million UTF-16 units")
   }
   let value = @json.parse(
     raw,
@@ -163,7 +166,37 @@ pub fn canonical(value : Json) -> String {
 fn same(a : Json?, b : Json?) -> Bool {
   match (a, b) {
     (None, None) => true
-    (Some(x), Some(y)) => canonical(x) == canonical(y)
+    (Some(x), Some(y)) => same_json(x, y)
+    _ => false
+  }
+}
+
+///|
+// Traverse without serializing whole cells, especially large MIME payloads.
+fn same_json(left : Json, right : Json) -> Bool {
+  match (left, right) {
+    (Object(a), Object(b)) =>
+      a.length() == b.length() &&
+      a
+      .iter()
+      .all(pair => {
+        let (key, value) = pair
+        same(Some(value), b.get(key))
+      })
+    (Array(a), Array(b)) => {
+      if a.length() != b.length() {
+        return false
+      }
+      for i in 0..<a.length() {
+        if !same_json(a[i], b[i]) {
+          return false
+        }
+      }
+      true
+    }
+    (String(a), String(b)) => a == b
+    (Number(_, ..), Number(_, ..)) => left.stringify() == right.stringify()
+    (True, True) | (False, False) | (Null, Null) => true
     _ => false
   }
 }
@@ -395,9 +428,6 @@ pub fn merge(
   ours : Notebook,
   theirs : Notebook,
 ) -> Review raise MergeError {
-  if base.raw.length() + ours.raw.length() + theirs.raw.length() > 1_000_000 {
-    raise Invalid("Combined merge inputs exceed 1 million UTF-16 units")
-  }
   let r = { base, ours, theirs, conflicts: [], }
   let (_, conflicts) = merge_value(r, Map([]))
   { ..r, conflicts, }
@@ -406,48 +436,6 @@ pub fn merge(
 ///|
 pub fn Review::conflicts(self : Review) -> Array[String] {
   self.conflicts.copy()
-}
-
-///|
-pub fn Review::to_json(self : Review) -> Json {
-  Json::object({
-    "version": Json::number(1),
-    "base": Json::string(self.base.raw),
-    "ours": Json::string(self.ours.raw),
-    "theirs": Json::string(self.theirs.raw),
-    "conflicts": Json::array(self.conflicts.map(Json::string)),
-  })
-}
-
-///|
-pub fn restore_review(text : String) -> Review raise MergeError {
-  if text.length() > 16_000_000 {
-    raise Invalid("Review exceeds limit")
-  }
-  let v = @json.parse(
-    text,
-    max_nesting_depth=64,
-    reject_duplicate_keys=true,
-    preserve_number_repr=true,
-  ) catch {
-    _ => raise Invalid("Invalid review JSON")
-  }
-  let m = object(v)
-  fn get(m : Map[String, Json], key : String) -> String raise MergeError {
-    guard m.get(key) is Some(String(s)) else {
-      raise Invalid("Missing review input " + key)
-    }
-    s
-  }
-  let r = merge(
-    read_notebook(get(m, "base")),
-    read_notebook(get(m, "ours")),
-    read_notebook(get(m, "theirs")),
-  )
-  if canonical(r.to_json()) != canonical(v) {
-    raise Invalid("Review fields/version/conflicts do not match replay")
-  }
-  r
 }
 
 ///|
@@ -508,6 +496,11 @@ fn Review::resolve_value(
     raise Invalid("Order conflict requires an explicit complete order array")
   }
   let text = canonical(value)
+  if text.length() > NotebookLimit {
+    raise Invalid(
+      "Merged notebook exceeds 4 million UTF-16 units; reduce input payloads explicitly and retry",
+    )
+  }
   let _ = read_notebook(text)
   text
 }

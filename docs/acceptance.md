@@ -46,6 +46,7 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Resolve only the conflicting cell fields, preserve independent changes, and review custom source safely | scripts/e2e.mbtx; field_review_wbtest.mbt |
 | Batch validation continues after malformed and missing files without changing inputs | scripts/e2e.mbtx |
 | Preserve rich MIME output and renamed attachments, and review deletion with competing cell moves | scripts/workflows_e2e.mbtx; fixtures/workflows |
+| Replay compact decisions for large notebooks and reject stale originals without creating output | scripts/large_review_e2e.mbtx; review_document_wbtest.mbt |
 | Real Git merge with spaced paths, three index stages, abort and reviewed merge commit | scripts/git_e2e.mbtx |
 | Downstream tool uses only the packaged public API | scripts/consumer.mbtx; examples/consumer |
 

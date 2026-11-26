@@ -33,4 +33,7 @@ test "public review roundtrip and strict decisions" {
     "/cells/a/content": @cells.EditSource("combined", @cells.RequireEmpty),
   })
   assert_true(combined.contains("\"source\":\"combined\""))
+  let compact = @cells.canonical(r.compact_review())
+  let verified = @cells.restore_compact_review(compact,b,o,t)
+  assert_eq(verified.conflicts(),restored.conflicts())
 }

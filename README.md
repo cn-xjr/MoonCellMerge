@@ -50,9 +50,12 @@ on failure. MIME values and unrecognized output types with a nonempty
 `output_type` are preserved without interpretation. See the
 [Jupyter format description](https://nbformat.readthedocs.io/en/latest/format_description.html#code-cell-outputs).
 
-Limits: 4 million UTF-16 units per notebook, 1 million combined merge input units,
-10,000 cells, JSON depth 64. Unsupported format versions/types and invalid IDs
-are rejected.
+Limits: 4 million UTF-16 units per input notebook and per exported result,
+10,000 cells per notebook, JSON depth 64. Three notebooks that pass validation
+can be reviewed at those individual limits. Export rejects oversized results
+with a diagnostic before opening the destination. File commands read up to
+16 MB per file. Unsupported format versions, cell types and invalid IDs are
+rejected.
 Structural numeric fields (`nbformat`, `nbformat_minor`, non-null
 `execution_count`) require plain nonnegative decimal integer tokens through
 2147483647. Fractions, exponents and negative zero are rejected before floating
@@ -123,8 +126,8 @@ and three presence-marked snapshots. An empty list exits 0, remaining conflicts
 exit 1, and invalid input exits 2 with no JSON on stdout. Save the full
 `review` output separately if you need to replay decisions.
 
-`review` prints an envelope with version, all three exact input texts and conflict
-paths. Save stdout. Exit codes: 0 clean, 1 conflicts, 2 invalid input/I/O.
+`review` prints a versioned envelope containing conflict paths and a binding
+to the exact input texts. Save stdout. Exit codes: 0 clean, 1 conflicts, 2 invalid input/I/O.
 Root-field conflicts use `/notebook/<escaped-key>`, cell conflicts use
 `/cells/<id>`, and order uses `/cell-order`; extension keys cannot collide with
 the reserved cell/order namespace. Keys use JSON Pointer escaping.
@@ -150,6 +153,37 @@ moon run cmd/main -- resolve BASE.ipynb OURS.ipynb THEIRS.ipynb DECISIONS.json
 Resolved JSON goes to stdout. Do not redirect onto an input file. Review/resolve
 do not write destinations. Whole-cell selection acknowledges all its values,
 including potentially stale output; it does not establish scientific correctness.
+
+### Review large notebooks
+
+When the three input texts total more than one million UTF-16 units, `review`
+automatically emits a compact version 2 envelope. `review-compact` requests
+the same format at any size. It stores each input's SHA-256 digest over its
+exact decoded UTF-16LE text without an added BOM, plus the conflict paths.
+Keep the original notebooks. Replay requires the same three texts in the
+same order, including their whitespace. A changed input or conflict list
+invalidates the review and its decisions.
+
+```text
+moon run cmd/main -- review-compact BASE.ipynb OURS.ipynb THEIRS.ipynb
+moon run cmd/main -- inspect-fields REVIEW.json BASE.ipynb OURS.ipynb THEIRS.ipynb
+moon run cmd/main -- template-fields REVIEW.json BASE.ipynb OURS.ipynb THEIRS.ipynb
+moon run cmd/main -- resolve-to BASE.ipynb OURS.ipynb THEIRS.ipynb DECISIONS.json NEW.ipynb
+```
+
+Save the review and template output to the indicated files and fill in the
+choices before resolving. All `inspect` and `template` variants accept the
+three input paths for compact replay. Existing version 1 files embed the
+inputs and continue to work with the single review path. Version 2 digests
+check input identity without authenticating who made a decision.
+
+Library users can call `Review::compact_review`, `restore_compact_review`,
+and `Review::compact_decision_template`. The compact envelope works with either
+whole-cell or field-level decisions.
+
+Run `moon run scripts/large_review_e2e.mbtx wasm` to reproduce clean export,
+compact review, stale-input rejection and conflict resolution with an expanded
+SVG attachment and a rich MIME output.
 
 ### Resolve individual fields
 

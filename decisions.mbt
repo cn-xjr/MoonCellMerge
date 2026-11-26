@@ -16,6 +16,22 @@ pub fn Review::field_decision_template(self : Review) -> Json {
 }
 
 ///|
+/// Generate a decision template bound by hashes even for small notebooks.
+pub fn Review::compact_decision_template(
+  self : Review,
+  fields~ : Bool = false,
+) -> Json {
+  let doc : Map[String, Json] = {
+    "review": self.compact_review(),
+    "choices": Json::empty_object(),
+  }
+  if fields {
+    doc["version"] = Json::number(2)
+  }
+  Json::object(doc)
+}
+
+///|
 fn parse_side(value : Json) -> Choice raise MergeError {
   match value {
     String("base") => Base
@@ -50,7 +66,7 @@ pub fn Review::apply_decisions(
   self : Review,
   text : String,
 ) -> String raise MergeError {
-  if text.length() > 16_000_000 {
+  if text.length() > ReviewLimit {
     raise Invalid("Decision document exceeds 16 million UTF-16 units")
   }
   let doc = @json.parse(
@@ -78,12 +94,11 @@ pub fn Review::apply_decisions(
     structural_integer(m.get("version"), "decision version") != 2 {
     raise Invalid("Unsupported decision version")
   }
-  if canonical(m["review"]) != canonical(self.to_json()) {
+  if !self.matches_binding(m["review"]) {
     raise Invalid(
       "Decisions are stale: review inputs do not match current files",
     )
   }
-  let _ = restore_review(canonical(m["review"]))
   let c = object(m["choices"])
   let order : Array[String]? = match m.get("order") {
     None => None
