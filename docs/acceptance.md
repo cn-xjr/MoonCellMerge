@@ -51,6 +51,37 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Real Git merge with spaced paths, three index stages, abort and reviewed merge commit | scripts/git_e2e.mbtx |
 | Downstream tool uses only the packaged public API | scripts/consumer.mbtx; examples/consumer |
 
+## Independent Jupyter validation
+
+The corpus runner requires Python 3.10 or later and the pinned Jupyter validator.
+The drivers and the main acceptance command use the MoonBit toolchain as before.
+
+```text
+python -m pip install nbformat==5.11.1
+moon run scripts/corpus_e2e.mbtx wasm
+moon run scripts/corpus_e2e.mbtx native
+```
+
+Set `CELLMERGE_PYTHON` to a Python executable in an isolated environment if
+needed. Native mode runs the native file CLI on Linux/macOS. The corpus is
+vendored, so the runner reads local fixture files and needs no network when
+the validator and MoonBit dependencies are installed.
+
+The runner checks each original against its pinned Git blob. For both nbformat
+4.5 originals, MoonCellMerge produces a clean merge and a resolved merge. The
+runner compares each whole notebook against the expected edits, including cell
+order and untouched execution output. It passes the raw export JSON to
+`nbformat.validate` and checks that the validator rejects invalid tag metadata.
+The older JupyterLab rich MIME sample passes Jupyter's 4.4 schema and exercises
+MoonCellMerge's unsupported-version diagnostic. The check reads stored output
+without executing any notebook cells.
+
+CI runs the Wasm corpus on Windows, Linux and macOS, plus the native corpus on
+Linux and macOS. The corpus jobs must pass before the driver bundle is uploaded.
+Fixture origins and notices are recorded in [THIRD_PARTY.md](../THIRD_PARTY.md).
+
+## CI results
+
 CI uses this same acceptance command: portable mode on Windows and native mode
 on Linux/macOS. Each successful job leaves acceptance-receipt.json in its runner
 checkout; no receipt is committed into the source tree or published as a package.

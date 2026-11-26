@@ -1,0 +1,127 @@
+----
+import {
+ "moonbitlang/async@0.22.5", "moonbitlang/async@0.22.5/fs",
+ "moonbitlang/async@0.22.5/shell", "moonbitlang/core/env", "moonbitlang/core/json",
+}
+----
+
+async fn run(program : String, args : Array[String], status : Int32, stderr~ : Bool = false) -> String {
+ let result = @shell.Cmd(program,args).output(timeout_ms=180000)
+ assert_eq(result.exit_code(),status,msg=args.join(" ")+"\n"+result.stdout()+result.stderr())
+ if stderr { result.stderr() } else { result.stdout() }
+}
+
+async fn main {
+ let moon = @env.get_env_var("CELLMERGE_MOON").unwrap_or("moon")
+ let python = @env.get_env_var("CELLMERGE_PYTHON").unwrap_or("python")
+ let target = @env.args().get(1).unwrap_or("wasm")
+ guard ["wasm","native"].contains(target) else { fail("CLI target must be wasm or native") }
+ let dir = @fs.realpath(@fs.tmpdir(prefix="cellmerge-corpus"))
+
+ async fn cli(command : Array[String], status : Int32) -> String {
+  let args = ["run","--target",target,"cmd/main","--"]
+  for arg in command { args.push(arg) }
+  run(moon,args,status)
+ }
+ let version = run(python,["-W","error","-c","import nbformat; print(nbformat.__version__)"],0)
+ assert_eq(version.trim().to_owned(),"5.11.1",msg="Install nbformat==5.11.1 for corpus validation")
+ // The Python call is an adapter to the upstream schema validator. All
+ // fixture preparation, merge operations and comparisons run in MoonBit.
+ async fn validate_schema(path : String, minor : String, expected : Int32) -> String {
+  run(python,["-W","error","-c",
+   "import json, sys, nbformat; from pathlib import Path; nbformat.validate(json.loads(Path(sys.argv[1]).read_text(encoding='utf-8')), version=4, version_minor=int(sys.argv[2]))",
+   path,minor,
+  ],expected,stderr=expected != 0)
+ }
+ fn parse(text : String) -> Json raise {
+  @json.parse(text,reject_duplicate_keys=true,preserve_number_repr=true)
+ }
+ fn document_cells(doc : Json) -> Array[Json] raise {
+  guard doc is Object(root) && root["cells"] is Array(cells) else { fail("Expected corpus notebook cells") }
+  cells
+ }
+ fn set_cell_metadata(cell : Json, key : String, value : Json) -> Unit raise {
+  guard cell is Object(fields) && fields["metadata"] is Object(metadata) else { fail("Expected cell metadata") }
+  metadata[key] = value
+ }
+
+ for (name, blob, license) in [
+  ("awkward-arrays","5c53e00ace9d5f4f6193245cbaa9c1f89cdad096","AWKWARD_LICENSE"),
+  ("jupyterlab-long-output","c01d0f57f6cbcd3acf78488d3d0b6188c45adde3","JUPYTERLAB_LICENSE"),
+  ("jupyterlab-legacy-mime","57b2ed6a7dbda33579af70bddea07d4d1b482cb1","JUPYTERLAB_LICENSE"),
+ ] {
+  let base = "fixtures/corpus/"+name+".ipynb"
+  assert_true(@fs.exists("fixtures/corpus/"+license),msg="Missing fixture license: "+license)
+  assert_eq(run("git",["hash-object","--no-filters",base],0).trim().to_owned(),blob)
+  if name == "jupyterlab-legacy-mime" {
+   let _ = validate_schema(base,"4",0)
+   let diagnostic = cli(["validate",base],2)
+   assert_true(diagnostic.contains("Only nbformat 4.5"))
+   let refused = dir+"/legacy-output.ipynb"
+   let _ = cli(["merge-to",base,base,base,refused],2)
+   assert_true(!@fs.exists(refused))
+   println("Verified explicit refusal of the valid 4.4 JupyterLab MIME fixture")
+   continue
+  }
+  let _ = validate_schema(base,"5",0)
+  let text = @fs.read_file(base).text()
+  let snapshot = parse(text)
+  let original = document_cells(snapshot)
+  guard original[0] is Object(first) && first["cell_type"] == Json::string("markdown") &&
+   first["id"] is String(key) else { fail("Expected Markdown opening cell with a stable ID") }
+  let last = original.length()-1
+  let base_dir = dir+"/"+name
+  @fs.mkdir(base_dir)
+  let ours = base_dir+"/ours.ipynb"
+  let theirs = base_dir+"/theirs.ipynb"
+
+  let ours_notebook = parse(text)
+  let theirs_notebook = parse(text)
+  let expected = parse(text)
+  let ours_cells = document_cells(ours_notebook)
+  let theirs_cells = document_cells(theirs_notebook)
+  let expected_cells = document_cells(expected)
+  set_cell_source(ours_cells[0],"# Reviewed introduction\n")
+  set_cell_source(expected_cells[0],"# Reviewed introduction\n")
+  let tag = "mooncellmerge_corpus"
+  let label = Json::string("independent-final-cell-review")
+  set_cell_metadata(theirs_cells[last],tag,label)
+  set_cell_metadata(expected_cells[last],tag,label)
+  @fs.write_file(ours,ours_notebook.stringify())
+  @fs.write_file(theirs,theirs_notebook.stringify())
+  let merged = base_dir+"/merged.ipynb"
+  let _ = cli(["merge-to",base,ours,theirs,merged],0)
+  let _ = validate_schema(merged,"5",0)
+  assert_eq(parse(@fs.read_file(merged).text()),expected)
+
+  set_cell_source(theirs_cells[0],"# Competing introduction\n")
+  set_cell_metadata(theirs_cells[0],tag,Json::string("preserved-first-cell-review"))
+  set_cell_metadata(expected_cells[0],tag,Json::string("preserved-first-cell-review"))
+  @fs.write_file(theirs,theirs_notebook.stringify())
+  let review = base_dir+"/review.json"
+  @fs.write_file(review,cli(["review-compact",base,ours,theirs],1))
+  let template = parse(cli(["template-fields",review,base,ours,theirs],0))
+  guard template is Object(decision) else { fail("Expected field decision document") }
+  let path = "/cells/"+key+"/content"
+  decision["choices"] = Json::object(Map([(path,Json::string("ours"))]))
+  let choices = base_dir+"/decisions.json"
+  @fs.write_file(choices,template.stringify())
+  let resolved = base_dir+"/resolved.ipynb"
+  let _ = cli(["resolve-to",base,ours,theirs,choices,resolved],0)
+  let _ = validate_schema(resolved,"5",0)
+  assert_eq(parse(@fs.read_file(resolved).text()),expected)
+  println("Validated "+name+" clean and reviewed outputs against nbformat 5.11.1")
+ }
+ let invalid = dir+"/wrong-tag-type.ipynb"
+ let control = parse(@fs.read_file("fixtures/corpus/jupyterlab-long-output.ipynb").text())
+ set_cell_metadata(document_cells(control)[0],"tags",Json::number(7))
+ @fs.write_file(invalid,control.stringify())
+ let mismatch = validate_schema(invalid,"5",1)
+ assert_true(mismatch.contains("ValidationError"))
+ println("Corpus validation and negative schema control passed. Files retained at "+dir)
+}
+
+fn set_cell_source(cell : Json, source : String) -> Unit raise {
+ guard cell is Object(fields) else { fail("Expected cell object") }
+ fields["source"] = Json::string(source)
+}

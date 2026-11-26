@@ -1,1 +1,2 @@
 * text=auto eol=lf
+fixtures/corpus/*.ipynb -text

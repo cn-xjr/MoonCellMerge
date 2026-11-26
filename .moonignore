@@ -16,6 +16,9 @@
 !/fixtures/workflows/
 !/fixtures/workflows/*/
 !/fixtures/workflows/*/*.ipynb
+!/fixtures/corpus/
+!/fixtures/corpus/*.ipynb
+!/fixtures/corpus/*_LICENSE
 !/fixtures/JUPYTER_LICENSE
 !/scripts/
 !/scripts/*.mbtx

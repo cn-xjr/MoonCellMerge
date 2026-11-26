@@ -38,6 +38,10 @@ async fn main {
  for name in ["review_document.mbt","scripts/workflows_e2e.mbtx","scripts/large_review_e2e.mbtx"] {
   assert_true(entries.contains(name),msg="Missing packaged sample or review implementation: "+name)
  }
+ for name in ["awkward-arrays.ipynb","jupyterlab-long-output.ipynb","jupyterlab-legacy-mime.ipynb","AWKWARD_LICENSE","JUPYTERLAB_LICENSE"] {
+  assert_true(entries.contains("fixtures/corpus/"+name),msg="Missing packaged corpus item: "+name)
+ }
+ assert_true(entries.contains("scripts/corpus_e2e.mbtx"))
  let library = dir+"/library"
  let consumer = dir+"/consumer"
  @fs.mkdir(library)

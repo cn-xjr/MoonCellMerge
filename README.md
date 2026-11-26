@@ -119,6 +119,11 @@ The workshop requires a decision for a deleted or edited cell and a complete
 retained-ID order after both branches rearrange cells. It also demonstrates
 automatic composition when each branch swaps cells at opposite ends.
 
+The upstream corpus adds original Awkward Array and JupyterLab notebooks.
+Its test compares the complete exported notebooks against expected edits,
+checks the exports with Jupyter's reference validator, and verifies clear
+refusal of a valid older-format notebook. [Corpus acceptance](docs/acceptance.md#independent-jupyter-validation)
+
 Inspect saved conflicts with `moon run cmd/main -- inspect REVIEW.json` (exit 1
 when conflicts remain). The public `Review::details` and `Review::to_text` expose
 all three snapshots, conflict kinds and actionable selection guidance. Missing
