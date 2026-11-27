@@ -49,6 +49,7 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Preserve rich MIME output and renamed attachments, and review deletion with competing cell moves | scripts/workflows_e2e.mbtx; fixtures/workflows |
 | Combine independent cell moves and reject cyclic orders or displaced insertion gaps | scripts/workflows_e2e.mbtx; order_merge_wbtest.mbt |
 | Replay compact decisions for large notebooks and reject stale originals without creating output | scripts/large_review_e2e.mbtx; review_document_wbtest.mbt |
+| Scan compact or embedded reviews without printing large payloads, and recover the same field paths and order guidance | scripts/large_review_e2e.mbtx; scripts/e2e.mbtx; scripts/workflows_e2e.mbtx |
 | Real Git merge with spaced paths, three index stages, abort and reviewed merge commit | scripts/git_e2e.mbtx |
 | Downstream tool uses only the packaged public API | scripts/consumer.mbtx; examples/consumer |
 

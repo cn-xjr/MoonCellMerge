@@ -36,7 +36,7 @@ async fn execute() -> Int32 {
   let a = @env.args()
   if a.length() < 2 {
     fail(
-      "usage: validate NOTEBOOK... | review or review-compact BASE OURS THEIRS | inspect, inspect-json, inspect-fields, template or template-fields REVIEW [BASE OURS THEIRS] | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
+      "usage: validate NOTEBOOK... | review or review-compact BASE OURS THEIRS | inspect, inspect-json, inspect-fields, inspect-summary, template or template-fields REVIEW [BASE OURS THEIRS] | resolve BASE OURS THEIRS DECISIONS | merge-to BASE OURS THEIRS OUTPUT | resolve-to BASE OURS THEIRS DECISIONS OUTPUT | git-driver BASE OURS THEIRS",
     )
   }
   if a[1] == "validate" && a.length() >= 3 {
@@ -69,12 +69,15 @@ async fn execute() -> Int32 {
     }
     return if invalid { 2 } else { 0 }
   }
-  if ["inspect", "inspect-json", "inspect-fields"].contains(a[1]) &&
+  if ["inspect", "inspect-json", "inspect-fields", "inspect-summary"].contains(
+      a[1],
+    ) &&
     (a.length() == 3 || a.length() == 6) {
     let r = read_review(a)
     let report = match a[1] {
       "inspect-json" => @merge.canonical(r.conflict_report())
       "inspect-fields" => @merge.canonical(r.field_conflict_report())
+      "inspect-summary" => inspection_summary(r)
       _ => r.to_text()
     }
     @stdio.stdout.write(report + "\n")

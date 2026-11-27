@@ -51,6 +51,10 @@ async fn main {
   paths.push(fields["path"])
  }
  assert_eq(paths,["/cells/setup","/cell-order"].map(Json::string))
+ let summary = run(["inspect-summary",review_path],1)
+ assert_true(summary.contains("\"/cells/setup\" [delete-edit]") && summary.contains("ours: (absent)"))
+ assert_true(summary.contains("\"/cell-order\" [cell-order]") && summary.contains("4 cell IDs"))
+ assert_true(summary.contains("Set order to every retained cell ID exactly once."))
  let template = parse(run(["template",review_path],0))
  guard template is Object(decision) else { fail("Expected decision object") }
  decision["choices"] = Json::object({"/cells/setup":Json::string("theirs")})

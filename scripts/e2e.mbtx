@@ -56,6 +56,7 @@ async fn main {
  assert_true(inspected.contains("Select base/ours/theirs"))
  let empty_report = run(["inspect-json",dir+"/clean-review.json"],0)
  assert_eq(@json.parse(empty_report),@json.parse("{\"conflicts\":[],\"requires_order\":false,\"version\":1}"))
+ assert_eq(run(["inspect-summary",dir+"/clean-review.json"],0),"MoonCellMerge: 0 review item(s)\n")
  let machine_report = run(["inspect-json",dir+"/conflict-review.json"],1)
  assert_eq(machine_report,run(["inspect-json",dir+"/conflict-review.json"],1))
  let report = @json.parse(machine_report)
@@ -111,6 +112,9 @@ async fn main {
   content["path"] is String(content_path) else { fail("Field report shape") }
  assert_eq(field_report_map["version"],Json::number(2))
  assert_eq(content_path,"/cells/2fcdfa53/content")
+ let field_summary = run(["inspect-summary",field_review],1)
+ assert_true(field_summary.contains("\""+content_path+"\" [cell-content]"))
+ assert_true(field_summary.contains("ours: \"markdown\" source=\"ours source\""))
  let field_template = @json.parse(run(["template-fields",field_review],0))
  guard field_template is Object(field_doc) else { fail("Field decision shape") }
  let field_decisions = dir+"/field-decisions.json"

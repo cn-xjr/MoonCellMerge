@@ -183,7 +183,7 @@ invalidates the review and its decisions.
 
 ```text
 moon run cmd/main -- review-compact BASE.ipynb OURS.ipynb THEIRS.ipynb
-moon run cmd/main -- inspect-fields REVIEW.json BASE.ipynb OURS.ipynb THEIRS.ipynb
+moon run cmd/main -- inspect-summary REVIEW.json BASE.ipynb OURS.ipynb THEIRS.ipynb
 moon run cmd/main -- template-fields REVIEW.json BASE.ipynb OURS.ipynb THEIRS.ipynb
 moon run cmd/main -- resolve-to BASE.ipynb OURS.ipynb THEIRS.ipynb DECISIONS.json NEW.ipynb
 ```
@@ -211,12 +211,21 @@ the other branch. Contents still move as a group with cell type, attachments,
 outputs and execution count. Added or deleted cells retain whole-cell decisions.
 
 ```text
+moon run cmd/main -- inspect-summary REVIEW.json
 moon run cmd/main -- inspect-fields REVIEW.json
 moon run cmd/main -- template-fields REVIEW.json
 ```
 
-Save the second command's output and fill its `choices` using the exact paths
-from the first command. A version 2 decision file uses the same saved `review`
+Use `inspect-summary` to scan field paths and compare the three sides in a terminal.
+It previews up to 96 source characters, counts attachments, and lists the execution
+count and up to six output kinds for code cells. It also flags deleted cells
+and shows the first six IDs on each side of an order conflict. Payloads such as
+images and attachment data stay in the full `inspect-fields` evidence.
+All inspection commands exit 0 for a clean review, 1 for conflicts, and 2 for
+invalid or stale input.
+
+Save the `template-fields` output and fill its `choices` using the exact paths
+shown by either inspection command above. A version 2 decision file uses the same saved `review`
 envelope and the same `resolve` or `resolve-to` command. For example, set
 `"/cells/analysis/content": "ours"` to select that content group, or use
 `"/cells/analysis/metadata/reviewer": "theirs"` for a conflicting metadata key.
