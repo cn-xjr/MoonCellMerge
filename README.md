@@ -14,7 +14,8 @@ Source version 0.1.0; not published to Mooncakes. Supports nbformat 4.5 with
 unique legal cell IDs; code, Markdown and raw cells.
 Notebook-level metadata also merges independent top-level producer keys. Nested
 values such as kernelspec or language_info remain atomic; competing nested edits
-require `/notebook/metadata` review. Deletion differs from a present JSON null.
+require a choice for that producer key in field review. Deletion differs from a
+present JSON null.
 Saved reviews are recomputed on restoration: regenerate an older review if the
 new analysis changes its conflict list rather than applying obsolete choices.
 
@@ -209,6 +210,9 @@ conflicting content, top-level metadata keys, and extension fields separately.
 For example, choosing one branch's source can preserve a review tag added by
 the other branch. Contents still move as a group with cell type, attachments,
 outputs and execution count. Added or deleted cells retain whole-cell decisions.
+Notebook metadata uses the same field workflow. For example, choose one
+branch's `kernelspec` and retain a separate provenance entry added by the other
+branch.
 
 ```text
 moon run cmd/main -- inspect-summary REVIEW.json
@@ -229,6 +233,11 @@ shown by either inspection command above. A version 2 decision file uses the sam
 envelope and the same `resolve` or `resolve-to` command. For example, set
 `"/cells/analysis/content": "ours"` to select that content group, or use
 `"/cells/analysis/metadata/reviewer": "theirs"` for a conflicting metadata key.
+Use `"/notebook/metadata/kernelspec": "ours"` for a conflicting notebook metadata key.
+Producer values stay atomic, and keys use JSON Pointer escaping. Existing
+decisions for the entire `/notebook/metadata` map can still be replayed with
+their original meaning. A decision file uses either the whole metadata map or
+its individual keys for that conflict.
 The `order` array continues to specify every retained ID when order conflicts.
 The original `inspect`, `inspect-json`, and `template` commands still support
 the existing whole-cell workflow.

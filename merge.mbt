@@ -296,6 +296,7 @@ fn merge_value(
   choices : Map[String, Choice],
   order_override? : Array[String],
   cell_overrides? : Map[String, Json],
+  metadata_override? : Json,
 ) -> (Json, Array[String]) raise MergeError {
   let conflicts : Array[String] = []
   let b = object(r.base.value)
@@ -307,6 +308,10 @@ fn merge_value(
       continue
     }
     if k == "metadata" {
+      if metadata_override is Some(value) {
+        out[k] = value
+        continue
+      }
       if compose_notebook_metadata(b.get(k), o.get(k), t.get(k)) is Some(v) {
         out[k] = v
         continue
@@ -488,12 +493,14 @@ fn Review::resolve_value(
   choices : Map[String, Choice],
   order : Array[String]?,
   cell_overrides? : Map[String, Json],
+  metadata_override? : Json,
 ) -> String raise MergeError {
   let (value, actual) = merge_value(
     self,
     choices,
     order_override?=order,
     cell_overrides?,
+    metadata_override?,
   )
   if actual.contains("/cell-order") && order is None {
     raise Invalid("Order conflict requires an explicit complete order array")

@@ -45,6 +45,7 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Delete/edit, stale output evidence and explicit decisions | merge_wbtest.mbt; decisions_wbtest.mbt |
 | Read versioned JSON conflict reports in automation | scripts/e2e.mbtx; consumer_test.mbt |
 | Resolve only the conflicting cell fields, preserve independent changes, and review custom source safely | scripts/e2e.mbtx; field_review_wbtest.mbt |
+| Resolve a notebook metadata key while retaining both branches' independent additions, and replay whole-map decisions | scripts/e2e.mbtx; notebook_metadata_wbtest.mbt |
 | Batch validation continues after malformed and missing files without changing inputs | scripts/e2e.mbtx |
 | Preserve rich MIME output and renamed attachments, and review deletion with competing cell moves | scripts/workflows_e2e.mbtx; fixtures/workflows |
 | Combine independent cell moves and reject cyclic orders or displaced insertion gaps | scripts/workflows_e2e.mbtx; order_merge_wbtest.mbt |

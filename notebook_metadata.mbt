@@ -1,22 +1,47 @@
 ///|
-// Notebook metadata has producer-owned top-level keys. Merge only independent
-// keys; nested objects remain atomic so kernelspec/language_info cannot become
-// a synthetic combination of incompatible producer settings.
-fn compose_notebook_metadata(b : Json?, o : Json?, t : Json?) -> Json? {
+const NotebookMetadataPath = "/notebook/metadata"
+
+///|
+// Producer-owned values stay atomic, even when they are objects.
+fn merge_metadata_keys(
+  base : Map[String, Json],
+  ours : Map[String, Json],
+  theirs : Map[String, Json],
+  conflict : (String, Json?, Json?, Json?) -> Json? raise MergeError,
+) -> Json raise MergeError {
+  let out : Map[String, Json] = Map([])
+  for key in keys3(base, ours, theirs) {
+    let b = base.get(key)
+    let o = ours.get(key)
+    let t = theirs.get(key)
+    let value = match agreed(b, o, t) {
+      Some(chosen) => chosen
+      None => conflict(key, b, o, t)
+    }
+    if value is Some(payload) {
+      out[key] = payload
+    }
+  }
+  Json::object(out)
+}
+
+///|
+fn compose_notebook_metadata(
+  b : Json?,
+  o : Json?,
+  t : Json?,
+) -> Json? raise MergeError {
   guard b is Some(Object(bm)) && o is Some(Object(om)) && t is Some(Object(tm)) else {
     return None
   }
-  let conflicts : Array[String] = []
-  let out : Map[String, Json] = Map([])
-  for key in keys3(bm, om, tm) {
-    if pick(key, bm.get(key), om.get(key), tm.get(key), Map([]), conflicts)
-      is Some(v) {
-      out[key] = v
-    }
-  }
-  if conflicts.is_empty() {
-    Some(Json::object(out))
-  } else {
+  let mut conflicted = false
+  let metadata = merge_metadata_keys(bm, om, tm, (_, _, _, _) => {
+    conflicted = true
     None
+  })
+  if conflicted {
+    None
+  } else {
+    Some(metadata)
   }
 }

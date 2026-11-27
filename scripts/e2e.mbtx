@@ -142,6 +142,30 @@ async fn main {
  let _ = run(["merge-to",b,o,t,metadata_output],0)
  let metadata_text = @fs.read_file(metadata_output).text()
  assert_true(metadata_text.contains("analysis-team") && metadata_text.contains("independent-release"))
+ ometa["workflow/profile"] = Json::string("interactive")
+ tmeta["workflow/profile"] = Json::string("batch")
+ @fs.write_file(o,notebook_meta_ours.stringify())
+ @fs.write_file(t,notebook_meta_theirs.stringify())
+ let metadata_review = dir+"/metadata-review.json"
+ @fs.write_file(metadata_review,run(["review-compact",b,o,t],1))
+ let metadata_summary = run(["inspect-summary",metadata_review,b,o,t],1)
+ let metadata_path = "/notebook/metadata/workflow~1profile"
+ assert_true(metadata_summary.contains("\""+metadata_path+"\" [notebook-metadata]"))
+ let metadata_template = @json.parse(run(["template-fields",metadata_review,b,o,t],0))
+ guard metadata_template is Object(metadata_decision) else { fail("Expected metadata decision template") }
+ metadata_decision["choices"] = Json::object(Map([(metadata_path,Json::string("theirs"))]))
+ let metadata_decisions = dir+"/metadata-decisions.json"
+ @fs.write_file(metadata_decisions,metadata_template.stringify())
+ let reviewed_metadata = dir+"/reviewed-metadata.ipynb"
+ let _ = run(["resolve-to",b,o,t,metadata_decisions,reviewed_metadata],0)
+ let reviewed_notebook = @json.parse(@fs.read_file(reviewed_metadata).text(),preserve_number_repr=true)
+ guard reviewed_notebook is Object(result_root) && result_root["metadata"] is Object(result_meta) else {
+  fail("Expected resolved notebook metadata")
+ }
+ ometa["workflow/profile"] = tmeta["workflow/profile"]
+ ometa["cellmerge-release"] = tmeta["cellmerge-release"]
+ assert_eq(result_meta,ometa)
+ assert_eq(result_root["cells"],om["cells"])
  @fs.write_file(b,edit(raw,0,"line-a\nkeep-1\nline-b\nkeep-2\nline-c\n"))
  @fs.write_file(o,edit(raw,0,"ours-a\nkeep-1\nline-b\nkeep-2\nours-c\n"))
  @fs.write_file(t,edit(raw,0,"line-a\nkeep-1\ntheirs-b\nkeep-2\nline-c\n"))

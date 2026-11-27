@@ -17,6 +17,7 @@ priv struct FieldPlan {
   conflicts : Array[Conflict]
   whole_choices : Map[String, Choice]
   resolved_cells : Map[String, Json]
+  resolved_metadata : Json?
 }
 
 ///|
@@ -88,8 +89,35 @@ fn Review::plan_fields(
   let conflicts : Array[Conflict] = []
   let whole_choices : Map[String, Choice] = Map([])
   let resolved_cells : Map[String, Json] = Map([])
+  let mut resolved_metadata = None
   for c in self.details() {
-    if c.path.strip_prefix("/cells/") is Some(cell_id) &&
+    // Older field decision documents can still select the whole metadata map.
+    if c.path == NotebookMetadataPath && !decisions.contains(c.path) {
+      let base = object(snapshot_value(c.base).unwrap_or(Json::null()))
+      let ours = object(snapshot_value(c.ours).unwrap_or(Json::null()))
+      let theirs = object(snapshot_value(c.theirs).unwrap_or(Json::null()))
+      resolved_metadata = Some(
+        merge_metadata_keys(base, ours, theirs, (key, b, o, t) => {
+          let path = NotebookMetadataPath + "/" + escape_pointer(key)
+          conflicts.push({
+            path,
+            kind: "notebook-metadata",
+            base: presence(b),
+            ours: presence(o),
+            theirs: presence(t),
+          })
+          match decisions.get(path) {
+            Some(Take(side)) => select_side(b, o, t, Some(side))
+            Some(EditSource(_, _)) =>
+              raise Invalid(
+                "Custom source requires a cell content conflict: " +
+                Json::string(path).stringify(),
+              )
+            None => o
+          }
+        }),
+      )
+    } else if c.path.strip_prefix("/cells/") is Some(cell_id) &&
       snapshot_value(c.base) is Some(Object(bm)) &&
       snapshot_value(c.ours) is Some(Object(om)) &&
       snapshot_value(c.theirs) is Some(Object(tm)) {
@@ -141,13 +169,14 @@ fn Review::plan_fields(
       }
     }
   }
-  { conflicts, whole_choices, resolved_cells, }
+  { conflicts, whole_choices, resolved_cells, resolved_metadata, }
 }
 
 ///|
 /// Return caller-owned snapshots for conflicting cell content groups, metadata
-/// keys and extension fields. Cell existence and notebook conflicts retain
-/// their existing paths. The path suffixes escape keys as JSON Pointers.
+/// keys and extension fields, plus notebook metadata keys. Cell existence
+/// and other notebook conflicts retain their existing paths. The path
+/// suffixes escape keys as JSON Pointers.
 pub fn Review::field_details(self : Review) -> Array[Conflict] raise MergeError {
   self.plan_fields(Map([])).conflicts
 }
@@ -179,5 +208,6 @@ pub fn Review::resolve_fields(
     plan.whole_choices,
     order,
     cell_overrides=plan.resolved_cells,
+    metadata_override?=plan.resolved_metadata,
   )
 }
