@@ -26,6 +26,12 @@ outputs, execution_count and attachments are one atomic group. This prevents
 mixing one branch's code with the other's execution evidence, or inserting a
 Markdown reference while the other branch removes its image. Source composition
 requires unchanged attachments. Nested metadata remains atomic.
+Cell `source` and code `stream.text` compare by concatenated text, so a save
+that changes between strings and string arrays does not block another
+branch's edit. Line endings, output order, stream names, MIME payloads and
+extension data retain their significance. An agreed edit retains an input's
+representation, with a deterministic choice if both branches encode it
+differently. Review bindings continue to use the exact original inputs.
 Single-sided insertions, deletions and moves work. The merger also combines
 independent moves of retained cells. It keeps the base order of each pair
 unless either branch reverses it, then checks that all pair constraints agree.

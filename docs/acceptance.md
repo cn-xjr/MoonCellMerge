@@ -40,6 +40,7 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Workflow | Executable verification |
 | --- | --- |
 | Parallel analysis-cell changes and conservative same-cell source composition | scripts/e2e.mbtx; source_merge_wbtest.mbt |
+| Merge a real code change alongside source and stream reserialization | scripts/corpus_e2e.mbtx; multiline_text_wbtest.mbt |
 | Independent producer metadata and insertions into distinct cell gaps | scripts/e2e.mbtx; notebook_metadata_wbtest.mbt; order_merge_wbtest.mbt |
 | Delete/edit, stale output evidence and explicit decisions | merge_wbtest.mbt; decisions_wbtest.mbt |
 | Read versioned JSON conflict reports in automation | scripts/e2e.mbtx; consumer_test.mbt |

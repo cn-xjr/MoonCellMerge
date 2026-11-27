@@ -51,19 +51,13 @@ fn id(cell : Json) -> String raise MergeError {
 
 ///|
 fn source(cell : Json) -> String raise MergeError {
-  match object(cell).get("source") {
-    Some(String(s)) => s
-    Some(Array(a)) => {
-      let out = StringBuilder()
-      for part in a {
-        guard part is String(s) else {
-          raise Invalid("source array must contain strings")
-        }
-        out.write_string(s)
-      }
-      out.to_string()
-    }
-    _ => raise Invalid("Expected cell source")
+  let value = object(cell).get("source")
+  if join_multiline(value) is Some(text) {
+    text
+  } else if value is Some(Array(_)) {
+    raise Invalid("source array must contain strings")
+  } else {
+    raise Invalid("Expected cell source")
   }
 }
 
@@ -221,8 +215,9 @@ fn pick(
   theirs : Json?,
   choices : Map[String, Choice],
   conflicts : Array[String],
+  agree~ : (Json?, Json?, Json?) -> Json?? = agreed,
 ) -> Json? {
-  if agreed(base, ours, theirs) is Some(value) {
+  if agree(base, ours, theirs) is Some(value) {
     return value
   }
   if !conflicts.contains(path) {
@@ -336,7 +331,15 @@ fn merge_value(
     let mut chosen = if composed is Some(c) {
       Some(c)
     } else {
-      pick(path, bi.get(key), oi.get(key), ti.get(key), choices, conflicts)
+      pick(
+        path,
+        bi.get(key),
+        oi.get(key),
+        ti.get(key),
+        choices,
+        conflicts,
+        agree=agreed_cell,
+      )
     }
     if conflicts.contains(path) &&
       (oi.get(key) is None) != (ti.get(key) is None) &&

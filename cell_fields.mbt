@@ -33,7 +33,7 @@ fn compose_existing_cell(
   let bg = content_group(bm)
   let og = content_group(om)
   let tg = content_group(tm)
-  let content = match agreed(Some(bg), Some(og), Some(tg)) {
+  let content = match agreed_cell(Some(bg), Some(og), Some(tg)) {
     Some(value) => value
     None => compose_source_group(bm, om, tm)
   }

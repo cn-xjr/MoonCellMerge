@@ -118,7 +118,43 @@ async fn main {
  @fs.write_file(invalid,control.stringify())
  let mismatch = validate_schema(invalid,"5",1)
  assert_true(mismatch.contains("ValidationError"))
+
+ let long_output = "fixtures/corpus/jupyterlab-long-output.ipynb"
+ let original = @fs.read_file(long_output).text()
+ let reencoded = parse(original)
+ let changed = parse(original)
+ guard document_cells(reencoded)[2] is Object(recoded_cell) &&
+  recoded_cell["outputs"] is Array([Object(stream)]) &&
+  document_cells(changed)[2] is Object(edited_cell) &&
+  edited_cell["metadata"] is Object(edited_meta)
+  else { fail("Expected executed JupyterLab code cell") }
+ recoded_cell["source"] = Json::string(join_jupyter_parts(recoded_cell["source"]))
+ stream["text"] = Json::string(join_jupyter_parts(stream["text"]))
+ edited_cell["source"] = Json::string("for number in range(3):\n    print(number)")
+ edited_cell["outputs"] = Json::array([])
+ edited_cell["execution_count"] = Json::null()
+ edited_meta.remove("execution")
+ let format_only = dir+"/reencoded.ipynb"
+ let source_edit = dir+"/code-edit.ipynb"
+ let reencoded_merge = dir+"/reencoded-merge.ipynb"
+ @fs.write_file(format_only,reencoded.stringify())
+ @fs.write_file(source_edit,changed.stringify())
+ let _ = validate_schema(format_only,"5",0)
+ let _ = cli(["merge-to",long_output,format_only,source_edit,reencoded_merge],0)
+ let _ = validate_schema(reencoded_merge,"5",0)
+ assert_eq(parse(@fs.read_file(reencoded_merge).text()),changed)
+ println("Validated a code edit with cleared outputs against a format-only branch")
  println("Corpus validation and negative schema control passed. Files retained at "+dir)
+}
+
+fn join_jupyter_parts(value : Json) -> String raise {
+ guard value is Array(parts) else { fail("Expected an upstream multiline array") }
+ let text = StringBuilder()
+ for part in parts {
+  guard part is String(s) else { fail("Expected an upstream multiline string") }
+  text.write_string(s)
+ }
+ text.to_string()
 }
 
 fn set_cell_source(cell : Json, source : String) -> Unit raise {
