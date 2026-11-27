@@ -247,21 +247,24 @@ a branch to preserve its attachment and execution evidence. The library
 exposes `Review::field_details`, `Review::field_conflict_report`,
 `Review::field_decision_template`, and `Review::resolve_fields`.
 
-For a destination file, use exclusive creation instead of shell redirection:
+Use these commands to publish a complete notebook to a fresh destination:
 
 ```text
 moon run cmd/main -- merge-to BASE.ipynb OURS.ipynb THEIRS.ipynb NEW.ipynb
 moon run cmd/main -- resolve-to BASE.ipynb OURS.ipynb THEIRS.ipynb DECISIONS.json NEW.ipynb
 ```
 
-Both commands finish analysis/decision validation before opening the output.
-Existing destinations (including an input file) fail with exit 2 and are never
-truncated. A conflicting `merge-to` exits 1 without creating the destination;
-stale/invalid decisions also create no destination. Creation uses the filesystem's
-exclusive-create operation, not a check-then-write race. A storage failure during
-writing can leave a partial newly created file; inspect and remove it explicitly
-before retrying. This is not a claim of crash-atomic publication or directory
-durability. The Git driver's overwrite behavior is documented separately below.
+Both commands finish validation, write and flush a temporary notebook beside
+the destination, then publish it with the filesystem's no-overwrite rename.
+Existing destinations (including an input file) fail with exit 2, even if
+another process creates one during the write. A conflicting `merge-to` exits 1
+without creating the destination. Invalid or stale decisions exit 2.
+
+The destination directory must already exist on a filesystem that supports
+atomic rename. An interrupted process can leave a `.mooncellmerge-*` staging
+directory beside the destination. Remove it once the writer has stopped.
+The CLI flushes file data before rename. It does not sync the parent directory
+for power-loss durability.
 
 ## Git driver
 
@@ -282,8 +285,9 @@ git config merge.cellmerge.driver 'moonrun "/absolute/path/MoonCellMerge/_build/
 Add `*.ipynb merge=cellmerge` to its .gitattributes. Quote paths containing spaces.
 Only a clean merge writes Git's temporary OURS file; conflicts leave it unchanged
 and exit 1. Use review/resolve to resolve conflicts, then stage the reviewed file.
-The initial driver uses a normal file write, not a durable atomic rename; use
-Git's original versions to recover from an interrupted write.
+The driver requires a writable regular OURS file and replaces it by atomic
+rename after flushing the result. On Unix the replacement uses private
+permissions (mode 0600, subject to umask).
 
 Run `moon run scripts/git_e2e.mbtx` to exercise actual Git merges in isolated
 repositories, with a copied Wasm executable and filenames containing spaces.

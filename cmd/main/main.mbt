@@ -105,7 +105,7 @@ async fn execute() -> Int32 {
     let r = @merge.merge(b, o, t)
     let result = r.apply_decisions(read(a[5]))
     if a[1] == "resolve-to" {
-      @fs.write_file(a[6], result + "\n", create_mode=CreateNew, sync=Full)
+      publish_notebook(a[6], result + "\n", replace=false)
       @stdio.stdout.write("Created " + Json::string(a[6]).stringify() + "\n")
     } else {
       @stdio.stdout.write(result + "\n")
@@ -123,7 +123,7 @@ async fn execute() -> Int32 {
       return 1
     }
     let result = r.resolve(Map([]))
-    @fs.write_file(a[5], result + "\n", create_mode=CreateNew, sync=Full)
+    publish_notebook(a[5], result + "\n", replace=false)
     @stdio.stdout.write("Created " + Json::string(a[5]).stringify() + "\n")
     return 0
   }
@@ -141,7 +141,7 @@ async fn execute() -> Int32 {
   } else if a[1] == "review-compact" {
     @stdio.stdout.write(@merge.canonical(r.compact_review()) + "\n")
   } else if r.conflicts().is_empty() {
-    @fs.write_file(a[3], r.resolve(Map([])))
+    publish_notebook(a[3], r.resolve(Map([])), replace=true)
   } else {
     @stdio.stderr.write(
       "Unresolved notebook conflicts; OURS retained. Run review to save evidence.\n",

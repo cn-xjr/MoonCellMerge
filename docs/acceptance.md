@@ -50,6 +50,7 @@ never overwritten. Failed runs retain temporary artifacts for diagnosis.
 | Combine independent cell moves and reject cyclic orders or displaced insertion gaps | scripts/workflows_e2e.mbtx; order_merge_wbtest.mbt |
 | Replay compact decisions for large notebooks and reject stale originals without creating output | scripts/large_review_e2e.mbtx; review_document_wbtest.mbt |
 | Scan compact or embedded reviews without printing large payloads, and recover the same field paths and order guidance | scripts/large_review_e2e.mbtx; scripts/e2e.mbtx; scripts/workflows_e2e.mbtx |
+| Race two complete exports to one path, recover from an occupied destination, and refuse a Git OURS symlink on Unix | cmd/main/publication_wbtest.mbt; scripts/e2e.mbtx |
 | Real Git merge with spaced paths, three index stages, abort and reviewed merge commit | scripts/git_e2e.mbtx |
 | Downstream tool uses only the packaged public API | scripts/consumer.mbtx; examples/consumer |
 
@@ -122,9 +123,11 @@ an older green revision does not establish a newer one passes.
 - Code is not executed; choosing retained output does not certify freshness.
 - No legacy cell-ID inference, notebook trust/signatures, browser UI or editor
   extension is included. There is no performance advantage claim.
-- Exclusive result exports protect existing files. A new file can remain partial
-  after I/O failure. Git's temporary OURS uses a normal write; original Git
-  versions are the recovery source for interrupted writes.
+- Result exports use no-overwrite atomic rename. The Git driver atomically
+  replaces its temporary OURS after a clean merge. These operations rely on
+  the filesystem's rename semantics. File data is flushed before publication.
+  Parent-directory entries are not synced, and forcibly stopped jobs can leave
+  staging directories.
 
 These limits define the initial delivery. Further work should improve adoption
 and correctness against real notebooks, without weakening conflict visibility or
